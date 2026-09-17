@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Educator Reports — EtaQuest LMS</title>
+<link rel="icon" href="assets/etaquest-logo-icon.jpg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+      <div class="brand-name" data-brand-name>EtaQuest</div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Department</div>
+      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
+      <div class="nav-item active">Educator reports</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-name" id="user-name">—</div>
+      <div class="role-line" id="role-line">—</div>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Educator reports</h1>
+        <div class="school-tag" id="school-tag">—</div>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <div class="empty-state"><h3>Loading…</h3></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  function timeAgo(dateStr) {
+    if (!dateStr) return "Never";
+    const diffMs = Date.now() - new Date(dateStr + "Z").getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (days <= 0) return "Today";
+    if (days === 1) return "Yesterday";
+    return `${days} days ago`;
+  }
+
+  (async () => {
+    let session;
+    try {
+      session = await eq_me();
+    } catch {
+      window.location.href = "index.html";
+      return;
+    }
+
+    if (session.user.role !== "hod" && session.user.role !== "admin") {
+      document.getElementById("content").innerHTML = `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>Reports are only visible to Heads of Department and Admins.</p></div></div>`;
+      return;
+    }
+
+    document.getElementById("user-name").textContent = session.user.name;
+    document.getElementById("role-line").textContent =
+      { admin: "Super Admin", hod: "Head of Department" }[session.user.role];
+    if (session.school) {
+      eq_applyBranding(session.school);
+      document.getElementById("school-tag").textContent = session.school.name;
+    }
+
+    const educators = await eq_getReports();
+    const content = document.getElementById("content");
+
+    if (!educators.length) {
+      content.innerHTML = `<div class="panel"><div class="empty-state"><h3>No educators yet</h3><p>Once educators are added to your school, their progress will show up here.</p></div></div>`;
+      return;
+    }
+
+    content.innerHTML = educators.map(edu => {
+      const rows = edu.courses.length
+        ? edu.courses.map(c => {
+            const pct = c.total_modules ? Math.round((c.modules_completed / c.total_modules) * 100) : 0;
+            return `
+              <tr>
+                <td>${c.title}</td>
+                <td style="min-width:200px;">
+                  <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+                  <span class="progress-label">${c.modules_completed}/${c.total_modules} modules (${pct}%)</span>
+                </td>
+                <td>${c.updated_at ? timeAgo(c.updated_at) : "Not started"}</td>
+              </tr>
+            `;
+          }).join("")
+        : `<tr><td colspan="3" style="color:var(--color-ink-soft)">No curricula assigned.</td></tr>`;
+
+      return `
+        <div class="panel">
+          <div class="panel-header">
+            <h2>${edu.name}</h2>
+            <span class="count">${edu.loginCount} sign-in${edu.loginCount === 1 ? "" : "s"} · last active ${timeAgo(edu.lastLogin)}</span>
+          </div>
+          <table>
+            <thead><tr><th>Curriculum</th><th>Completion</th><th>Last updated</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }).join("");
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,11 @@
+name = "etaquest-lms"
+pages_build_output_dir = "."
+compatibility_date = "2026-09-01"
+
+# After creating the D1 database (see README), fill in the real
+# database_id below. It's printed when you run:
+#   wrangler d1 create etaquest-lms
+[[d1_databases]]
+binding = "DB"
+database_name = "etaquest-lms"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"

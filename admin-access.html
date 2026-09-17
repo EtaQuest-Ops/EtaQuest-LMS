@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course Access — EtaQuest LMS</title>
+<link rel="icon" href="assets/etaquest-logo-icon.jpg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+      <div class="brand-name" data-brand-name>EtaQuest</div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Manage</div>
+      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
+      <div class="nav-item active">Course access</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-name" id="user-name">—</div>
+      <div class="role-line" id="role-line">—</div>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Course access</h1>
+        <div class="school-tag">Choose which schools and educators can reach which curricula</div>
+      </div>
+      <div>
+        <select id="school-select" style="padding:8px 12px; border:1px solid var(--color-line); border-radius:4px; font-family:var(--font-body);"></select>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="section-heading">
+        <h2>Licensed curricula for this school</h2>
+        <span class="count" id="school-course-count"></span>
+      </div>
+      <div class="panel" id="school-courses-panel" style="margin-bottom:32px;">
+        <div class="empty-state"><h3>Loading…</h3></div>
+      </div>
+
+      <div class="section-heading">
+        <h2>Assign courses to an educator</h2>
+      </div>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <h2>Educator</h2>
+          <select id="educator-select" style="padding:8px 12px; border:1px solid var(--color-line); border-radius:4px; font-family:var(--font-body); min-width:220px;"></select>
+        </div>
+      </div>
+      <div class="panel" id="educator-courses-panel">
+        <div class="empty-state"><h3>Select an educator above</h3></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  let schoolId = null;
+
+  function toggleRowHTML({ id, title, category, checked, dataAttr, disabled }) {
+    return `
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">${title}</div>
+          ${category ? `<div class="toggle-sub">${category}</div>` : ""}
+        </div>
+        <label class="switch">
+          <input type="checkbox" data-${dataAttr}-id="${id}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}>
+          <span class="track"></span>
+        </label>
+      </div>
+    `;
+  }
+
+  async function renderSchoolCourses() {
+    const panel = document.getElementById("school-courses-panel");
+    panel.innerHTML = `<div class="empty-state"><h3>Loading…</h3></div>`;
+    const courses = await eq_getSchoolCourses(schoolId);
+    document.getElementById("school-course-count").textContent =
+      `${courses.filter(c => c.licensed).length} of ${courses.length} licensed`;
+
+    panel.innerHTML = courses.map(c => toggleRowHTML({
+      id: c.id, title: c.title, category: c.category, checked: c.licensed, dataAttr: "course"
+    })).join("");
+
+    panel.querySelectorAll("input[type=checkbox]").forEach(input => {
+      input.addEventListener("change", async () => {
+        const courseId = input.dataset.courseId;
+        input.disabled = true;
+        try {
+          await eq_setSchoolCourse(schoolId, courseId, input.checked);
+          await renderSchoolCourses();
+          // Revoking a license can also drop educator assignments server-side —
+          // refresh the educator panel too, in case the currently selected
+          // educator was affected.
+          const educatorId = document.getElementById("educator-select").value;
+          if (educatorId) await renderEducatorCourses(educatorId);
+        } catch (err) {
+          alert(err.message);
+          input.checked = !input.checked;
+          input.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function renderEducatorSelect() {
+    const select = document.getElementById("educator-select");
+    const educators = await eq_getSchoolEducators(schoolId);
+
+    if (!educators.length) {
+      select.innerHTML = `<option value="">No educators at this school</option>`;
+      document.getElementById("educator-courses-panel").innerHTML =
+        `<div class="empty-state"><h3>No educators yet</h3><p>Add an educator to this school first.</p></div>`;
+      return;
+    }
+
+    select.innerHTML = educators.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+    select.value = educators[0].id;
+    await renderEducatorCourses(educators[0].id);
+  }
+
+  async function renderEducatorCourses(userId) {
+    const panel = document.getElementById("educator-courses-panel");
+    panel.innerHTML = `<div class="empty-state"><h3>Loading…</h3></div>`;
+    const courses = await eq_getEducatorCourses(userId);
+
+    if (!courses.length) {
+      panel.innerHTML = `<div class="empty-state"><h3>No licensed curricula</h3><p>License a course to this school above before assigning it to an educator.</p></div>`;
+      return;
+    }
+
+    panel.innerHTML = courses.map(c => toggleRowHTML({
+      id: c.id, title: c.title, category: c.category, checked: c.assigned, dataAttr: "course"
+    })).join("");
+
+    panel.querySelectorAll("input[type=checkbox]").forEach(input => {
+      input.addEventListener("change", async () => {
+        const courseId = input.dataset.courseId;
+        input.disabled = true;
+        try {
+          await eq_setEducatorCourse(userId, courseId, input.checked);
+        } catch (err) {
+          alert(err.message);
+          input.checked = !input.checked;
+        }
+        input.disabled = false;
+      });
+    });
+  }
+
+  (async () => {
+    let session;
+    try {
+      session = await eq_me();
+    } catch {
+      window.location.href = "index.html";
+      return;
+    }
+
+    if (session.user.role !== "admin") {
+      document.querySelector(".content").innerHTML =
+        `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>Course access management is Admin-only.</p></div></div>`;
+      return;
+    }
+
+    document.getElementById("user-name").textContent = session.user.name;
+    document.getElementById("role-line").textContent = "Super Admin";
+
+    const schoolSelect = document.getElementById("school-select");
+    const schools = session.schools || [];
+    schoolSelect.innerHTML = schools.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+    schoolId = schools[0]?.id;
+    if (session.school) eq_applyBranding(session.school);
+
+    if (schoolId) {
+      await renderSchoolCourses();
+      await renderEducatorSelect();
+    }
+
+    schoolSelect.addEventListener("change", async (e) => {
+      schoolId = e.target.value;
+      const meData = await eq_me(schoolId);
+      eq_applyBranding(meData.school);
+      await renderSchoolCourses();
+      await renderEducatorSelect();
+    });
+
+    document.getElementById("educator-select").addEventListener("change", (e) => {
+      if (e.target.value) renderEducatorCourses(e.target.value);
+    });
+  })();
+</script>
+
+</body>
+</html>

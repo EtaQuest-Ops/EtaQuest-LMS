@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course — EtaQuest LMS</title>
+<link rel="icon" href="assets/etaquest-logo-icon.jpg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+      <div class="brand-name" data-brand-name>EtaQuest</div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Classroom</div>
+      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">My courses</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-name" id="user-name">—</div>
+      <div class="role-line" id="role-line">—</div>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="course-title">Loading…</h1>
+        <div class="school-tag" id="school-tag">—</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <a class="back-link" href="dashboard.html">&larr; Back to my courses</a>
+      <div class="course-viewer" id="course-viewer"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  (async () => {
+    let session;
+    try {
+      session = await eq_me();
+    } catch {
+      window.location.href = "index.html";
+      return;
+    }
+
+    document.getElementById("user-name").textContent = session.user.name;
+    document.getElementById("role-line").textContent =
+      { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[session.user.role];
+    if (session.school) {
+      eq_applyBranding(session.school);
+      document.getElementById("school-tag").textContent = session.school.name;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const courseId = params.get("id");
+    const viewer = document.getElementById("course-viewer");
+
+    let data;
+    try {
+      data = await eq_getCourse(courseId);
+    } catch (err) {
+      document.getElementById("course-title").textContent = "Course not found";
+      viewer.innerHTML = `<div class="panel"><div class="empty-state"><h3>We couldn't load that course</h3><p>${err.message}</p></div></div>`;
+      return;
+    }
+
+    const { course, lessons, progress } = data;
+    document.getElementById("course-title").textContent = course.title;
+
+    const isEducator = session.user.role === "educator";
+
+    function embedFrameHTML(lesson) {
+      if (lesson && lesson.embed_url) {
+        return `<iframe src="${lesson.embed_url}" style="width:100%;height:100%;border:none;" allow="fullscreen" allowfullscreen></iframe>`;
+      }
+      return `<div class="placeholder-note">
+        Canva smart-embed will render here once linked.
+        <code>${lesson ? `embed_url is empty for "${lesson.title}"` : `No lessons added yet for "${course.title}"`}</code>
+      </div>`;
+    }
+
+    function lessonPlanHTML(lesson) {
+      if (lesson && lesson.lesson_plan_url) {
+        return `<a class="btn btn-ghost btn-sm btn-block" href="${lesson.lesson_plan_url}" target="_blank" rel="noopener">Download lesson plan (.docx)</a>`;
+      }
+      return `<p style="font-size:13px; color:var(--color-ink-soft); margin:0;">Lesson plan not yet uploaded — check back soon.</p>`;
+    }
+
+    viewer.innerHTML = `
+      <div>
+        <div class="embed-frame" id="embed-frame">${embedFrameHTML(lessons[0])}</div>
+      </div>
+      <div class="course-meta">
+        ${
+          lessons.length
+            ? `
+            <div class="panel">
+              <div class="card-body">
+                <div class="lesson-picker-label" id="lesson-class-label">Class 1</div>
+                <h3 id="lesson-picker-title" style="margin-bottom:12px;">${lessons[0].title}</h3>
+                <select id="lesson-select">
+                  ${lessons.map((l, i) => `<option value="${l.id}">Class ${l.sort_order} — ${l.title}</option>`).join("")}
+                </select>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="card-body">
+                <h3>Lesson plan</h3>
+                <div id="lesson-plan-slot">${lessonPlanHTML(lessons[0])}</div>
+              </div>
+            </div>`
+            : ""
+        }
+        <div class="panel"><div class="card-body"><h3>About this curriculum</h3><p>${course.summary || ""}</p></div></div>
+        <div class="panel"><div class="card-body"><h3>Category</h3><p>${course.category || "—"}</p></div></div>
+        ${
+          isEducator
+            ? `
+            <div class="panel">
+              <div class="card-body">
+                <h3>Your progress</h3>
+                <div class="progress-wrap" style="margin-bottom:12px;">
+                  <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:${Math.round((progress / course.total_modules) * 100)}%"></div></div>
+                  <span class="progress-label" id="progress-label">${progress}/${course.total_modules} modules</span>
+                </div>
+                <input type="range" id="progress-slider" min="0" max="${course.total_modules}" value="${progress}" style="width:100%;">
+                <button class="btn btn-primary btn-sm btn-block" id="save-progress" style="margin-top:10px;">Save progress</button>
+                <p id="save-status" style="font-size:12px; color:var(--color-teal); margin-top:8px; display:none;">Saved — your HOD will see this update.</p>
+              </div>
+            </div>`
+            : ""
+        }
+      </div>
+    `;
+
+    if (lessons.length) {
+      document.getElementById("lesson-select").addEventListener("change", (e) => {
+        const lesson = lessons.find(l => l.id === e.target.value);
+        document.getElementById("embed-frame").innerHTML = embedFrameHTML(lesson);
+        document.getElementById("lesson-class-label").textContent = `Class ${lesson.sort_order}`;
+        document.getElementById("lesson-picker-title").textContent = lesson.title;
+        document.getElementById("lesson-plan-slot").innerHTML = lessonPlanHTML(lesson);
+      });
+    }
+
+    if (isEducator) {
+      const slider = document.getElementById("progress-slider");
+      const fill = document.getElementById("progress-fill");
+      const label = document.getElementById("progress-label");
+      const saveBtn = document.getElementById("save-progress");
+      const saveStatus = document.getElementById("save-status");
+
+      slider.addEventListener("input", () => {
+        const pct = Math.round((slider.value / course.total_modules) * 100);
+        fill.style.width = `${pct}%`;
+        label.textContent = `${slider.value}/${course.total_modules} modules`;
+        saveStatus.style.display = "none";
+      });
+
+      saveBtn.addEventListener("click", async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Saving…";
+        try {
+          await eq_updateProgress(course.id, Number(slider.value));
+          saveStatus.style.display = "block";
+        } catch (err) {
+          alert(err.message);
+        }
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save progress";
+      });
+    }
+  })();
+</script>
+
+</body>
+</html>

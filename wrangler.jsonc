@@ -1,0 +1,16 @@
+{
+  "name": "etaquest-lms",
+  "compatibility_date": "2026-09-16",
+  "main": "./_worker.js",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "etaquest-lms",
+      "database_id": "d0c107ab-c90a-49df-b362-7a8e4b8761ad"
+    }
+  ]
+}
