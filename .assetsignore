@@ -1,0 +1,11 @@
+_worker.js
+_worker.js/**
+functions
+functions/**
+.git/**
+.wrangler/**
+schema.sql
+README.md
+scripts/**
+wrangler.jsonc
+.assetsignore
