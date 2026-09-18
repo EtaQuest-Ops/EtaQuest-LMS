@@ -19,11 +19,14 @@
     <nav class="nav-group">
       <div class="nav-label">Manage</div>
       <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
-      <div class="nav-item active">Course access</div>
+      <div class="nav-item active">Course access &amp; licensing</div>
+      <a class="nav-item" href="admin-users.html" style="text-decoration:none;">Users</a>
+      <a class="nav-item" href="admin-change-requests.html" style="text-decoration:none;">Change requests</a>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-name" id="user-name">—</div>
+      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
       <div class="role-line" id="role-line">—</div>
+      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
       <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
     </div>
   </aside>
@@ -60,6 +63,28 @@
       <div class="panel" id="educator-courses-panel">
         <div class="empty-state"><h3>Select an educator above</h3></div>
       </div>
+
+      <div class="section-heading">
+        <h2>School branding</h2>
+      </div>
+      <div class="panel" style="margin-bottom:32px;">
+        <div class="card-body">
+          <div class="field">
+            <label for="school-logo-url">Logo image URL for this school</label>
+            <input type="text" id="school-logo-url" placeholder="https://example.com/logo.png">
+          </div>
+          <button class="btn btn-primary btn-sm" id="save-school-logo">Save logo</button>
+          <p id="logo-save-status" style="font-size:12px; color:var(--color-teal); margin-top:8px; display:none;">Saved.</p>
+        </div>
+      </div>
+
+      <div class="section-heading">
+        <h2>Course licensing</h2>
+        <span class="count">Only Super Admin can edit — HOD can view on their dashboard</span>
+      </div>
+      <div class="panel" id="license-panel">
+        <div class="empty-state"><h3>Loading…</h3></div>
+      </div>
     </div>
   </div>
 
@@ -73,8 +98,8 @@
     return `
       <div class="toggle-row">
         <div>
-          <div class="toggle-label">${title}</div>
-          ${category ? `<div class="toggle-sub">${category}</div>` : ""}
+          <div class="toggle-label">${eq_escapeHtml(title)}</div>
+          ${category ? `<div class="toggle-sub">${eq_escapeHtml(category)}</div>` : ""}
         </div>
         <label class="switch">
           <input type="checkbox" data-${dataAttr}-id="${id}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}>
@@ -127,7 +152,7 @@
       return;
     }
 
-    select.innerHTML = educators.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+    select.innerHTML = educators.map(e => `<option value="${e.id}">${eq_escapeHtml(e.name)}</option>`).join("");
     select.value = educators[0].id;
     await renderEducatorCourses(educators[0].id);
   }
@@ -161,6 +186,55 @@
     });
   }
 
+  async function renderSchoolLogo(school) {
+    document.getElementById("school-logo-url").value = school.logo_url || "";
+  }
+
+  async function renderLicensePanel() {
+    const panel = document.getElementById("license-panel");
+    panel.innerHTML = `<div class="empty-state"><h3>Loading…</h3></div>`;
+    const courses = await eq_getLicenses();
+
+    panel.innerHTML = `
+      <table>
+        <thead><tr><th>Curriculum</th><th>Start date</th><th>End date</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${courses.map(c => {
+            const cls = { active: "license-active", expired: "license-expired", upcoming: "license-upcoming", unset: "license-unset" }[c.status];
+            return `
+              <tr data-course-id="${c.id}">
+                <td>${eq_escapeHtml(c.title)}</td>
+                <td><input type="date" class="license-start" value="${c.startDate || ""}" style="padding:6px 8px; border:1px solid var(--color-line); border-radius:4px;"></td>
+                <td><input type="date" class="license-end" value="${c.endDate || ""}" style="padding:6px 8px; border:1px solid var(--color-line); border-radius:4px;"></td>
+                <td><span class="license-pill ${cls}">${eq_escapeHtml(c.label)}</span></td>
+                <td><button class="btn btn-ghost btn-sm save-license">Save</button></td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
+
+    panel.querySelectorAll(".save-license").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest("tr");
+        const courseId = row.dataset.courseId;
+        const startDate = row.querySelector(".license-start").value || null;
+        const endDate = row.querySelector(".license-end").value || null;
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        try {
+          await eq_setLicense(courseId, startDate, endDate);
+          await renderLicensePanel();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+          btn.textContent = "Save";
+        }
+      });
+    });
+  }
+
   (async () => {
     let session;
     try {
@@ -181,25 +255,44 @@
 
     const schoolSelect = document.getElementById("school-select");
     const schools = session.schools || [];
-    schoolSelect.innerHTML = schools.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+    schoolSelect.innerHTML = schools.map(s => `<option value="${s.id}">${eq_escapeHtml(s.name)}</option>`).join("");
     schoolId = schools[0]?.id;
-    if (session.school) eq_applyBranding(session.school);
+    if (session.school) {
+      eq_applyBranding(session.school);
+      await renderSchoolLogo(session.school);
+    }
 
     if (schoolId) {
       await renderSchoolCourses();
       await renderEducatorSelect();
     }
+    await renderLicensePanel();
 
     schoolSelect.addEventListener("change", async (e) => {
       schoolId = e.target.value;
       const meData = await eq_me(schoolId);
       eq_applyBranding(meData.school);
+      await renderSchoolLogo(meData.school);
       await renderSchoolCourses();
       await renderEducatorSelect();
     });
 
     document.getElementById("educator-select").addEventListener("change", (e) => {
       if (e.target.value) renderEducatorCourses(e.target.value);
+    });
+
+    document.getElementById("save-school-logo").addEventListener("click", async () => {
+      const btn = document.getElementById("save-school-logo");
+      const status = document.getElementById("logo-save-status");
+      btn.disabled = true;
+      try {
+        await eq_setSchoolLogo(schoolId, document.getElementById("school-logo-url").value.trim());
+        status.style.display = "block";
+        setTimeout(() => (status.style.display = "none"), 2500);
+      } catch (err) {
+        alert(err.message);
+      }
+      btn.disabled = false;
     });
   })();
 </script>

@@ -21,8 +21,9 @@
       <a class="nav-item" href="dashboard.html" style="text-decoration:none;">My courses</a>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-name" id="user-name">—</div>
+      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
       <div class="role-line" id="role-line">—</div>
+      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
       <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
     </div>
   </aside>
@@ -37,16 +38,254 @@
 
     <div class="content">
       <a class="back-link" href="dashboard.html">&larr; Back to my courses</a>
+      <div id="license-banner"></div>
       <div class="course-viewer" id="course-viewer"></div>
     </div>
   </div>
 
 </div>
 
+<div id="toast" class="toast"></div>
+
 <script src="app.js"></script>
 <script>
+  let session, course, lessons, currentLesson, currentView = "lecture";
+
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), 4000);
+  }
+
+  function lessonStatusOf(lesson) {
+    if (!lesson) return null;
+    if (lesson.completed_at) return "completed";
+    if (lesson.opened_at) return "opened";
+    return "not-opened";
+  }
+
+  function statusBadgeHTML(status) {
+    const map = {
+      "completed": { label: "Completed", cls: "status-completed" },
+      "opened": { label: "Opened", cls: "status-opened" },
+      "not-opened": { label: "Not opened", cls: "status-not-opened" }
+    };
+    const s = map[status] || map["not-opened"];
+    return `<span class="status-badge ${s.cls}">${s.label}</span>`;
+  }
+
+  function watermarkHTML() {
+    const label = `${eq_escapeHtml(session.user.name)} · ${eq_escapeHtml(session.user.email)} · ${new Date().toLocaleDateString()}`;
+    let tiles = "";
+    for (let i = 0; i < 6; i++) tiles += `<span>${label}</span>`;
+    return `<div class="embed-watermark" aria-hidden="true">${tiles}</div>`;
+  }
+
+  function embedBodyHTML() {
+    const isEducator = session.user.role === "educator";
+    let inner;
+
+    if (!currentLesson) {
+      inner = `<div class="placeholder-note">No lessons added yet for "${eq_escapeHtml(course.title)}".</div>`;
+    } else if (currentView === "lecture") {
+      inner = currentLesson.embed_url
+        ? `<iframe src="${currentLesson.embed_url}" style="width:100%;height:100%;border:none;" allow="fullscreen" allowfullscreen></iframe>`
+        : `<div class="placeholder-note">Canva smart-embed will render here once linked.<code>embed_url is empty for "${eq_escapeHtml(currentLesson.title)}"</code></div>`;
+    } else if (currentView === "plan") {
+      inner = currentLesson.lesson_plan_embed_url
+        ? `<iframe src="${currentLesson.lesson_plan_embed_url}" style="width:100%;height:100%;border:none;" allow="fullscreen" allowfullscreen></iframe>`
+        : `<div class="placeholder-note">Lesson plan viewer will render here once a Canva link is added.<code>lesson_plan_embed_url is empty for "${eq_escapeHtml(currentLesson.title)}"</code></div>`;
+    } else {
+      inner = currentLesson.outline_embed_url
+        ? `<iframe src="${currentLesson.outline_embed_url}" style="width:100%;height:100%;border:none;" allow="fullscreen" allowfullscreen></iframe>`
+        : `<div class="placeholder-note">Outline viewer will render here once a Canva link is added.<code>outline_embed_url is empty for "${eq_escapeHtml(currentLesson.title)}"</code></div>`;
+    }
+
+    return inner + watermarkHTML();
+  }
+
+  function renderViewTabs() {
+    const tabs = [
+      { key: "lecture", label: "Lecture" },
+      { key: "plan", label: "Lesson Plan" },
+      { key: "outline", label: "Outline" }
+    ];
+    return `<div class="view-tabs">${tabs.map(t =>
+      `<button class="view-tab${currentView === t.key ? " active" : ""}" data-view="${t.key}">${t.label}</button>`
+    ).join("")}</div>`;
+  }
+
+  function lessonPlanDownloadHTML() {
+    if (currentLesson && currentLesson.lesson_plan_url) {
+      return `<a class="btn btn-ghost btn-sm btn-block" href="${currentLesson.lesson_plan_url}" target="_blank" rel="noopener">Download lesson plan (.docx)</a>`;
+    }
+    return `<p style="font-size:12px; color:var(--color-ink-soft); margin:0;">No downloadable lesson plan document uploaded yet.</p>`;
+  }
+
+  async function selectLesson(lessonId) {
+    currentLesson = lessons.find(l => l.id === lessonId);
+    if (session.user.role === "educator" && currentLesson) {
+      try {
+        await eq_setLessonStatus(currentLesson.id, "open");
+        currentLesson.opened_at = currentLesson.opened_at || new Date().toISOString();
+      } catch { /* non-fatal — viewing still works even if the ping fails */ }
+    }
+    renderMain();
+  }
+
+  function attachEmbedProtections() {
+    const frame = document.getElementById("embed-frame");
+    if (!frame) return;
+    frame.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      showToast("Kindly note that this is licensed content. You cannot copy or screenshot this material.");
+    });
+    frame.addEventListener("copy", (e) => {
+      e.preventDefault();
+      showToast("Kindly note that this is licensed content. You cannot copy or screenshot this material.");
+    });
+  }
+
+  function renderMain() {
+    const isEducator = session.user.role === "educator";
+    const status = isEducator ? lessonStatusOf(currentLesson) : null;
+
+    document.querySelector(".course-viewer").innerHTML = `
+      <div>
+        ${renderViewTabs()}
+        <div class="embed-frame" id="embed-frame">${embedBodyHTML()}</div>
+        ${
+          isEducator && currentLesson
+            ? `<div class="lesson-status-row">
+                ${statusBadgeHTML(status)}
+                <button class="btn btn-sm ${status === "completed" ? "btn-ghost" : "btn-primary"}" id="toggle-complete">
+                  ${status === "completed" ? "Mark as not completed" : "Mark as completed"}
+                </button>
+              </div>`
+            : ""
+        }
+      </div>
+      <div class="course-meta">
+        ${
+          lessons.length
+            ? `<div class="panel">
+                <div class="card-body">
+                  <div class="lesson-picker-label">Class ${currentLesson.sort_order}</div>
+                  <h3 style="margin-bottom:12px;">${eq_escapeHtml(currentLesson.title)}</h3>
+                  <select id="lesson-select">
+                    ${lessons.map(l => `<option value="${l.id}" ${l.id === currentLesson.id ? "selected" : ""}>Class ${l.sort_order} — ${eq_escapeHtml(l.title)}</option>`).join("")}
+                  </select>
+                </div>
+              </div>`
+            : ""
+        }
+        ${
+          currentView === "plan" && currentLesson
+            ? `<div class="panel"><div class="card-body"><h3>Lesson plan document</h3>${lessonPlanDownloadHTML()}</div></div>`
+            : ""
+        }
+        <div class="panel"><div class="card-body"><h3>About this curriculum</h3><p>${eq_escapeHtml(course.summary || "")}</p></div></div>
+        <div class="panel"><div class="card-body"><h3>Category</h3><p>${eq_escapeHtml(course.category || "—")}</p></div></div>
+        ${
+          (session.user.role === "educator" || session.user.role === "hod")
+            ? `<div class="panel"><div class="card-body"><button class="btn btn-ghost btn-sm btn-block" id="open-change-request">Request a change</button></div></div>`
+            : ""
+        }
+      </div>
+    `;
+
+    document.querySelectorAll(".view-tab").forEach(btn => {
+      btn.addEventListener("click", () => { currentView = btn.dataset.view; renderMain(); });
+    });
+
+    if (lessons.length) {
+      document.getElementById("lesson-select").addEventListener("change", (e) => selectLesson(e.target.value));
+    }
+
+    const toggleBtn = document.getElementById("toggle-complete");
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", async () => {
+        toggleBtn.disabled = true;
+        const nextAction = status === "completed" ? "uncomplete" : "complete";
+        try {
+          await eq_setLessonStatus(currentLesson.id, nextAction);
+          currentLesson.completed_at = nextAction === "complete" ? new Date().toISOString() : null;
+          if (!currentLesson.opened_at) currentLesson.opened_at = new Date().toISOString();
+          renderMain();
+        } catch (err) {
+          alert(err.message);
+          toggleBtn.disabled = false;
+        }
+      });
+    }
+
+    const crBtn = document.getElementById("open-change-request");
+    if (crBtn) crBtn.addEventListener("click", openChangeRequestForm);
+
+    attachEmbedProtections();
+  }
+
+  function openChangeRequestForm() {
+    const existing = document.getElementById("cr-overlay");
+    if (existing) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "cr-overlay";
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal-card">
+        <h3>Request a change</h3>
+        <p class="modal-context">
+          Course: <strong>${eq_escapeHtml(course.title)}</strong><br>
+          Lecture: <strong>${eq_escapeHtml(currentLesson ? currentLesson.title : "—")}</strong>
+        </p>
+        <div class="field">
+          <label for="cr-page">Page / slide (optional)</label>
+          <input type="text" id="cr-page" placeholder="e.g. slide 4">
+        </div>
+        <div class="field">
+          <label for="cr-text">What should be changed?</label>
+          <textarea id="cr-text" rows="4" placeholder="e.g. I noticed this section contains an outdated wiring diagram." style="width:100%; padding:10px 12px; border:1px solid var(--color-line); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:14px;"></textarea>
+        </div>
+        <p id="cr-error" style="color:var(--color-danger); font-size:13px; display:none;"></p>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-ghost" id="cr-cancel" style="flex:1;">Cancel</button>
+          <button class="btn btn-primary" id="cr-submit" style="flex:1;">Submit</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById("cr-cancel").addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+
+    document.getElementById("cr-submit").addEventListener("click", async () => {
+      const text = document.getElementById("cr-text").value.trim();
+      const errEl = document.getElementById("cr-error");
+      if (!text) {
+        errEl.textContent = "Please describe the change you're requesting.";
+        errEl.style.display = "block";
+        return;
+      }
+      try {
+        await eq_submitChangeRequest({
+          courseId: course.id,
+          lessonId: currentLesson ? currentLesson.id : null,
+          pageNote: document.getElementById("cr-page").value.trim(),
+          requestText: text
+        });
+        overlay.remove();
+        showToast("Request submitted — thank you.");
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = "block";
+      }
+    });
+  }
+
   (async () => {
-    let session;
     try {
       session = await eq_me();
     } catch {
@@ -71,116 +310,29 @@
       data = await eq_getCourse(courseId);
     } catch (err) {
       document.getElementById("course-title").textContent = "Course not found";
-      viewer.innerHTML = `<div class="panel"><div class="empty-state"><h3>We couldn't load that course</h3><p>${err.message}</p></div></div>`;
+      viewer.innerHTML = `<div class="panel"><div class="empty-state"><h3>We couldn't load that course</h3><p>${eq_escapeHtml(err.message)}</p></div></div>`;
       return;
     }
 
-    const { course, lessons, progress } = data;
+    course = data.course;
+    lessons = data.lessons;
+    currentLesson = lessons[0] || null;
     document.getElementById("course-title").textContent = course.title;
 
-    const isEducator = session.user.role === "educator";
-
-    function embedFrameHTML(lesson) {
-      if (lesson && lesson.embed_url) {
-        return `<iframe src="${lesson.embed_url}" style="width:100%;height:100%;border:none;" allow="fullscreen" allowfullscreen></iframe>`;
-      }
-      return `<div class="placeholder-note">
-        Canva smart-embed will render here once linked.
-        <code>${lesson ? `embed_url is empty for "${lesson.title}"` : `No lessons added yet for "${course.title}"`}</code>
-      </div>`;
+    if (session.user.role === "educator" && currentLesson) {
+      try {
+        await eq_setLessonStatus(currentLesson.id, "open");
+        currentLesson.opened_at = currentLesson.opened_at || new Date().toISOString();
+      } catch { /* non-fatal */ }
     }
 
-    function lessonPlanHTML(lesson) {
-      if (lesson && lesson.lesson_plan_url) {
-        return `<a class="btn btn-ghost btn-sm btn-block" href="${lesson.lesson_plan_url}" target="_blank" rel="noopener">Download lesson plan (.docx)</a>`;
-      }
-      return `<p style="font-size:13px; color:var(--color-ink-soft); margin:0;">Lesson plan not yet uploaded — check back soon.</p>`;
+    if (data.license) {
+      const cls = { active: "license-active", expired: "license-expired", upcoming: "license-upcoming", unset: "license-unset" }[data.license.status];
+      document.getElementById("license-banner").innerHTML =
+        `<div class="license-pill ${cls}">${eq_escapeHtml(data.license.label)}</div>`;
     }
 
-    viewer.innerHTML = `
-      <div>
-        <div class="embed-frame" id="embed-frame">${embedFrameHTML(lessons[0])}</div>
-      </div>
-      <div class="course-meta">
-        ${
-          lessons.length
-            ? `
-            <div class="panel">
-              <div class="card-body">
-                <div class="lesson-picker-label" id="lesson-class-label">Class 1</div>
-                <h3 id="lesson-picker-title" style="margin-bottom:12px;">${lessons[0].title}</h3>
-                <select id="lesson-select">
-                  ${lessons.map((l, i) => `<option value="${l.id}">Class ${l.sort_order} — ${l.title}</option>`).join("")}
-                </select>
-              </div>
-            </div>
-            <div class="panel">
-              <div class="card-body">
-                <h3>Lesson plan</h3>
-                <div id="lesson-plan-slot">${lessonPlanHTML(lessons[0])}</div>
-              </div>
-            </div>`
-            : ""
-        }
-        <div class="panel"><div class="card-body"><h3>About this curriculum</h3><p>${course.summary || ""}</p></div></div>
-        <div class="panel"><div class="card-body"><h3>Category</h3><p>${course.category || "—"}</p></div></div>
-        ${
-          isEducator
-            ? `
-            <div class="panel">
-              <div class="card-body">
-                <h3>Your progress</h3>
-                <div class="progress-wrap" style="margin-bottom:12px;">
-                  <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:${Math.round((progress / course.total_modules) * 100)}%"></div></div>
-                  <span class="progress-label" id="progress-label">${progress}/${course.total_modules} modules</span>
-                </div>
-                <input type="range" id="progress-slider" min="0" max="${course.total_modules}" value="${progress}" style="width:100%;">
-                <button class="btn btn-primary btn-sm btn-block" id="save-progress" style="margin-top:10px;">Save progress</button>
-                <p id="save-status" style="font-size:12px; color:var(--color-teal); margin-top:8px; display:none;">Saved — your HOD will see this update.</p>
-              </div>
-            </div>`
-            : ""
-        }
-      </div>
-    `;
-
-    if (lessons.length) {
-      document.getElementById("lesson-select").addEventListener("change", (e) => {
-        const lesson = lessons.find(l => l.id === e.target.value);
-        document.getElementById("embed-frame").innerHTML = embedFrameHTML(lesson);
-        document.getElementById("lesson-class-label").textContent = `Class ${lesson.sort_order}`;
-        document.getElementById("lesson-picker-title").textContent = lesson.title;
-        document.getElementById("lesson-plan-slot").innerHTML = lessonPlanHTML(lesson);
-      });
-    }
-
-    if (isEducator) {
-      const slider = document.getElementById("progress-slider");
-      const fill = document.getElementById("progress-fill");
-      const label = document.getElementById("progress-label");
-      const saveBtn = document.getElementById("save-progress");
-      const saveStatus = document.getElementById("save-status");
-
-      slider.addEventListener("input", () => {
-        const pct = Math.round((slider.value / course.total_modules) * 100);
-        fill.style.width = `${pct}%`;
-        label.textContent = `${slider.value}/${course.total_modules} modules`;
-        saveStatus.style.display = "none";
-      });
-
-      saveBtn.addEventListener("click", async () => {
-        saveBtn.disabled = true;
-        saveBtn.textContent = "Saving…";
-        try {
-          await eq_updateProgress(course.id, Number(slider.value));
-          saveStatus.style.display = "block";
-        } catch (err) {
-          alert(err.message);
-        }
-        saveBtn.disabled = false;
-        saveBtn.textContent = "Save progress";
-      });
-    }
+    renderMain();
   })();
 </script>
 

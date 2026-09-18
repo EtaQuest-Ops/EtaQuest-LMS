@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Users — EtaQuest LMS</title>
+<link rel="icon" href="assets/etaquest-logo-icon.jpg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+      <div class="brand-name" data-brand-name>EtaQuest</div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Manage</div>
+      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
+      <a class="nav-item" href="admin-access.html" style="text-decoration:none;">Course access &amp; licensing</a>
+      <div class="nav-item active">Users</div>
+      <a class="nav-item" href="admin-change-requests.html" style="text-decoration:none;">Change requests</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
+      <div class="role-line" id="role-line">—</div>
+      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Users</h1>
+        <div class="school-tag">Create accounts and assign roles</div>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <div class="empty-state"><h3>Loading…</h3></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  let schools = [];
+
+  function newUserFormHTML() {
+    return `
+      <div class="panel" style="margin-bottom:32px; max-width:520px;">
+        <div class="panel-header"><h2>Create a user</h2></div>
+        <div class="card-body">
+          <div class="field">
+            <label for="nu-name">Name</label>
+            <input type="text" id="nu-name">
+          </div>
+          <div class="field">
+            <label for="nu-email">Email</label>
+            <input type="email" id="nu-email">
+          </div>
+          <div class="field">
+            <label for="nu-password">Temporary password</label>
+            <input type="password" id="nu-password" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="nu-role">Role</label>
+            <select id="nu-role">
+              <option value="educator">Educator</option>
+              <option value="hod">Head of Department</option>
+              <option value="admin">Super Admin</option>
+            </select>
+          </div>
+          <div class="field" id="nu-school-field">
+            <label for="nu-school">School</label>
+            <select id="nu-school">
+              ${schools.map(s => `<option value="${s.id}">${eq_escapeHtml(s.name)}</option>`).join("")}
+            </select>
+          </div>
+          <p id="nu-error" style="color:var(--color-danger); font-size:13px; display:none; margin-bottom:12px;"></p>
+          <button class="btn btn-primary btn-block" id="nu-submit">Create user</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function roleLabel(role) {
+    return { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[role] || role;
+  }
+
+  async function renderUserList() {
+    const users = await eq_getUsers();
+    document.getElementById("user-list-panel").innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>School</th></tr></thead>
+        <tbody>
+          ${users.map(u => `
+            <tr>
+              <td>${eq_escapeHtml(u.name)}</td>
+              <td>${eq_escapeHtml(u.email)}</td>
+              <td><span class="badge ${u.role === 'admin' ? 'badge-admin' : 'badge-educator'}">${roleLabel(u.role)}</span></td>
+              <td>${eq_escapeHtml(u.school_name || "—")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  (async () => {
+    let session;
+    try {
+      session = await eq_me();
+    } catch {
+      window.location.href = "index.html";
+      return;
+    }
+
+    if (session.user.role !== "admin") {
+      document.getElementById("content").innerHTML =
+        `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>User management is Super Admin-only.</p></div></div>`;
+      return;
+    }
+
+    document.getElementById("user-name").textContent = session.user.name;
+    document.getElementById("role-line").textContent = "Super Admin";
+    if (session.school) eq_applyBranding(session.school);
+
+    schools = session.schools || [];
+
+    document.getElementById("content").innerHTML = `
+      ${newUserFormHTML()}
+      <div class="section-heading"><h2>All users</h2></div>
+      <div class="panel" id="user-list-panel"><div class="empty-state"><h3>Loading…</h3></div></div>
+    `;
+
+    const roleSelect = document.getElementById("nu-role");
+    const schoolField = document.getElementById("nu-school-field");
+    roleSelect.addEventListener("change", () => {
+      schoolField.style.display = roleSelect.value === "admin" ? "none" : "block";
+    });
+
+    document.getElementById("nu-submit").addEventListener("click", async () => {
+      const btn = document.getElementById("nu-submit");
+      const errEl = document.getElementById("nu-error");
+      errEl.style.display = "none";
+
+      const name = document.getElementById("nu-name").value.trim();
+      const email = document.getElementById("nu-email").value.trim();
+      const password = document.getElementById("nu-password").value;
+      const role = roleSelect.value;
+      const schoolId = document.getElementById("nu-school").value;
+
+      if (!name || !email || !password) {
+        errEl.textContent = "Name, email, and password are all required.";
+        errEl.style.display = "block";
+        return;
+      }
+      if (password.length < 8) {
+        errEl.textContent = "Password must be at least 8 characters.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Creating…";
+      try {
+        await eq_createUser({ name, email, password, role, schoolId: role === "admin" ? null : schoolId });
+        document.getElementById("nu-name").value = "";
+        document.getElementById("nu-email").value = "";
+        document.getElementById("nu-password").value = "";
+        await renderUserList();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = "block";
+      }
+      btn.disabled = false;
+      btn.textContent = "Create user";
+    });
+
+    await renderUserList();
+  })();
+</script>
+
+</body>
+</html>

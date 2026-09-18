@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Change Requests — EtaQuest LMS</title>
+<link rel="icon" href="assets/etaquest-logo-icon.jpg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+      <div class="brand-name" data-brand-name>EtaQuest</div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Manage</div>
+      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
+      <a class="nav-item" href="admin-access.html" style="text-decoration:none;">Course access &amp; licensing</a>
+      <a class="nav-item" href="admin-users.html" style="text-decoration:none;">Users</a>
+      <div class="nav-item active">Change requests</div>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
+      <div class="role-line" id="role-line">—</div>
+      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Change requests</h1>
+        <div class="school-tag">Feedback submitted by educators and HODs about course material</div>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <div class="empty-state"><h3>Loading…</h3></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  const STATUS_OPTIONS = ["pending", "reviewed", "resolved", "rejected"];
+  const STATUS_LABEL = { pending: "Pending", reviewed: "Reviewed", resolved: "Resolved", rejected: "Rejected" };
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return "—";
+    const diffMs = Date.now() - new Date(dateStr + "Z").getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (days <= 0) return "Today";
+    if (days === 1) return "Yesterday";
+    return `${days} days ago`;
+  }
+
+  async function renderRequests() {
+    const content = document.getElementById("content");
+    const requests = await eq_getChangeRequests();
+
+    if (!requests.length) {
+      content.innerHTML = `<div class="panel"><div class="empty-state"><h3>No requests yet</h3><p>Change requests submitted by educators and HODs will show up here.</p></div></div>`;
+      return;
+    }
+
+    content.innerHTML = requests.map(r => `
+      <div class="panel" data-id="${r.id}">
+        <div class="panel-header">
+          <div>
+            <h2 style="font-size:14px;">${eq_escapeHtml(r.course_title)}${r.lesson_title ? ` — ${eq_escapeHtml(r.lesson_title)}` : ""}</h2>
+            <span class="count">${eq_escapeHtml(r.user_name)} (${r.user_role === "hod" ? "HOD" : "Educator"}) · ${timeAgo(r.created_at)}${r.page_note ? ` · ${eq_escapeHtml(r.page_note)}` : ""}</span>
+          </div>
+          <select class="cr-status" style="padding:6px 10px; border:1px solid var(--color-line); border-radius:4px; font-family:var(--font-body); font-size:13px;">
+            ${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === r.status ? "selected" : ""}>${STATUS_LABEL[s]}</option>`).join("")}
+          </select>
+        </div>
+        <div class="card-body">
+          <p style="font-size:14px; color:var(--color-ink); margin:0;">${eq_escapeHtml(r.request_text)}</p>
+        </div>
+      </div>
+    `).join("");
+
+    content.querySelectorAll(".cr-status").forEach(select => {
+      select.addEventListener("change", async (e) => {
+        const id = e.target.closest(".panel").dataset.id;
+        select.disabled = true;
+        try {
+          await eq_setChangeRequestStatus(id, select.value);
+        } catch (err) {
+          alert(err.message);
+        }
+        select.disabled = false;
+      });
+    });
+  }
+
+  (async () => {
+    let session;
+    try {
+      session = await eq_me();
+    } catch {
+      window.location.href = "index.html";
+      return;
+    }
+
+    if (session.user.role !== "admin") {
+      document.getElementById("content").innerHTML =
+        `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>Change requests are visible to Super Admin only.</p></div></div>`;
+      return;
+    }
+
+    document.getElementById("user-name").textContent = session.user.name;
+    document.getElementById("role-line").textContent = "Super Admin";
+    if (session.school) eq_applyBranding(session.school);
+
+    await renderRequests();
+  })();
+</script>
+
+</body>
+</html>
