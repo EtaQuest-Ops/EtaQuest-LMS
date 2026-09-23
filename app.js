@@ -2,23 +2,31 @@
    EtaQuest LMS — Frontend API client
    -----------------------------------------------------------
    Talks to the /api/* Pages Functions. Session token is kept
-   in sessionStorage (cleared when the browser/tab closes —
-   safer default for shared classroom computers).
+   in localStorage — shared across all tabs/windows of the same
+   origin, unlike sessionStorage, which is what caused lectures
+   opened via Ctrl/Cmd+click or "open in new tab" to lose their
+   session and bounce to the login page (see the note at the
+   bottom of this file for the full explanation).
    ========================================================= */
 
 const EQ_TOKEN_KEY = "eq_token";
 
 function eq_getToken() {
-  return sessionStorage.getItem(EQ_TOKEN_KEY);
+  return localStorage.getItem(EQ_TOKEN_KEY);
 }
 
 function eq_setToken(token) {
-  sessionStorage.setItem(EQ_TOKEN_KEY, token);
+  localStorage.setItem(EQ_TOKEN_KEY, token);
 }
 
 function eq_clearToken() {
-  sessionStorage.removeItem(EQ_TOKEN_KEY);
+  localStorage.removeItem(EQ_TOKEN_KEY);
 }
+
+// One-time cleanup: earlier versions of this app stored the token in
+// sessionStorage. If a stale one is sitting there, it's harmless but
+// unused now — remove it so it can't cause confusion.
+try { sessionStorage.removeItem(EQ_TOKEN_KEY); } catch {}
 
 async function eq_apiFetch(path, options = {}) {
   const token = eq_getToken();
@@ -29,6 +37,19 @@ async function eq_apiFetch(path, options = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
+}
+
+/* ---------- HTML escaping ----------
+   Used whenever we inject a value that ultimately came from user
+   input (a name, a request comment) into innerHTML. */
+function eq_escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /* ---------- Auth ---------- */
@@ -66,14 +87,15 @@ async function eq_getCourses(previewSchoolId) {
 }
 
 async function eq_getCourse(id) {
-  const data = await eq_apiFetch(`/api/course?id=${encodeURIComponent(id)}`);
-  return data;
+  return eq_apiFetch(`/api/course?id=${encodeURIComponent(id)}`);
 }
 
-async function eq_updateProgress(courseId, modulesCompleted) {
-  return eq_apiFetch("/api/progress", {
+/* ---------- Lesson open/complete tracking ---------- */
+
+async function eq_setLessonStatus(lessonId, action) {
+  return eq_apiFetch("/api/lesson-status", {
     method: "POST",
-    body: JSON.stringify({ courseId, modulesCompleted })
+    body: JSON.stringify({ lessonId, action })
   });
 }
 
@@ -121,6 +143,76 @@ async function eq_setEducatorCourse(userId, courseId, assigned) {
   });
 }
 
+async function eq_setSchoolLogo(schoolId, logoUrl) {
+  return eq_apiFetch("/api/admin/school-logo", {
+    method: "POST",
+    body: JSON.stringify({ schoolId, logoUrl })
+  });
+}
+
+/* ---------- Licensing ---------- */
+
+async function eq_getLicenses() {
+  const data = await eq_apiFetch("/api/admin/license");
+  return data.courses;
+}
+
+async function eq_setLicense(courseId, startDate, endDate) {
+  return eq_apiFetch("/api/admin/license", {
+    method: "POST",
+    body: JSON.stringify({ courseId, startDate, endDate })
+  });
+}
+
+/* ---------- Change requests ---------- */
+
+async function eq_submitChangeRequest({ courseId, lessonId, pageNote, requestText }) {
+  return eq_apiFetch("/api/change-requests", {
+    method: "POST",
+    body: JSON.stringify({ courseId, lessonId, pageNote, requestText })
+  });
+}
+
+async function eq_getChangeRequests() {
+  const data = await eq_apiFetch("/api/admin/change-requests");
+  return data.requests;
+}
+
+async function eq_setChangeRequestStatus(id, status) {
+  return eq_apiFetch("/api/admin/change-requests", {
+    method: "POST",
+    body: JSON.stringify({ id, status })
+  });
+}
+
+/* ---------- Profile ---------- */
+
+async function eq_getProfile() {
+  const data = await eq_apiFetch("/api/profile");
+  return data.profile;
+}
+
+async function eq_updateProfile(updates) {
+  return eq_apiFetch("/api/profile", {
+    method: "PATCH",
+    body: JSON.stringify(updates)
+  });
+}
+
+/* ---------- Admin: user management ---------- */
+
+async function eq_getUsers() {
+  const data = await eq_apiFetch("/api/admin/users");
+  return data.users;
+}
+
+async function eq_createUser(user) {
+  return eq_apiFetch("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify(user)
+  });
+}
+
 /* ---------- Whitelabel theming ---------- */
 
 function eq_applyBranding(school) {
@@ -130,6 +222,10 @@ function eq_applyBranding(school) {
   document.querySelectorAll("[data-brand-name]").forEach(el => (el.textContent = school.name));
   document.querySelectorAll("[data-brand-tagline]").forEach(el => (el.textContent = school.tagline || ""));
   document.querySelectorAll("[data-brand-mark]").forEach(el => (el.textContent = school.short_name));
+  // A school with its own logo overrides the default EtaQuest icon in the sidebar badge.
+  document.querySelectorAll(".brand-mark img").forEach(img => {
+    img.src = school.logo_url || "assets/etaquest-logo-icon.jpg";
+  });
 }
 
 /* ---------- Page guard ----------

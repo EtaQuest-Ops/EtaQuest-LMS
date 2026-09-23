@@ -95,9 +95,9 @@ button {
 .btn-block { width: 100%; }
 .btn-sm { padding: 7px 14px; font-size: 13px; }
 
-/* ========================================================
+/* =========================================================
    LOGIN PAGE
-   ======================================================== */
+   ========================================================= */
 
 .login-shell {
   display: grid;
@@ -366,6 +366,12 @@ button {
   color: var(--color-ink-soft);
   margin-top: 2px;
 }
+.welcome-line {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-teal);
+  margin-bottom: 2px;
+}
 
 .content {
   padding: 32px;
@@ -390,17 +396,65 @@ button {
 
 .course-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
 }
 
 .course-card {
+  position: relative;
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .course-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(20,24,31,0.08);
+    border-color: var(--brand-primary);
+  }
+  .course-card:hover .course-card-hover { opacity: 1; }
+}
+
+.course-card-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
+  background: var(--color-canvas);
+}
+
+.course-card-image-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+}
+
+.course-card-hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: linear-gradient(180deg, rgba(5,55,87,0.15) 0%, rgba(5,55,87,0.88) 100%);
+  display: flex;
+  align-items: flex-end;
+  padding: 16px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+.course-card-hover p {
+  color: #fff;
+  font-size: 13px;
+  margin: 0;
 }
 
 .course-card .card-tag-strip {
@@ -409,7 +463,7 @@ button {
 }
 
 .course-card .card-body {
-  padding: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -422,7 +476,7 @@ button {
   font-weight: 600;
 }
 
-.course-card h3 { font-size: 16px; }
+.course-card h3 { font-size: 17px; }
 
 .course-card p {
   font-size: 13px;
@@ -432,7 +486,7 @@ button {
 }
 
 .course-card .card-footer {
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-top: 1px solid var(--color-line);
 }
 
@@ -605,6 +659,137 @@ tr:last-child td { border-bottom: none; }
   outline: 2px solid var(--brand-accent);
   outline-offset: 1px;
 }
+
+/* ---------- View tabs (Lecture / Lesson Plan / Outline) ---------- */
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.view-tab {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--color-ink-soft);
+}
+.view-tab:hover { border-color: var(--brand-primary); }
+.view-tab.active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---------- Lesson status ---------- */
+
+.lesson-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+.status-badge.status-not-opened { background: var(--color-line); color: var(--color-ink-soft); }
+.status-badge.status-opened { background: #fbe7c6; color: #8a5a12; }
+.status-badge.status-completed { background: #dce8e4; color: var(--color-teal); }
+
+/* ---------- Embed watermark (accountability, not real screenshot prevention) ---------- */
+
+.embed-frame { position: relative; user-select: none; }
+.embed-watermark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+.embed-watermark span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-25deg);
+  font-size: 11px;
+  color: rgba(255,255,255,0.16);
+  white-space: nowrap;
+}
+
+/* ---------- Toast ---------- */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--color-ink);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  max-width: 420px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Modal (change request) ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,24,31,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+  padding: 20px;
+}
+.modal-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+}
+.modal-card h3 { margin-bottom: 12px; }
+.modal-context {
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  background: var(--color-canvas);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+/* ---------- License pill ---------- */
+
+.license-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+.license-pill.license-active { background: #dce8e4; color: var(--color-teal); }
+.license-pill.license-expired { background: #f7dcd4; color: var(--color-danger); }
+.license-pill.license-upcoming { background: #fbe7c6; color: #8a5a12; }
+.license-pill.license-unset { background: var(--color-line); color: var(--color-ink-soft); }
 
 /* ---------- Progress bars (curriculum completion) ---------- */
 
