@@ -127,7 +127,7 @@
         try {
           await eq_setSchoolCourse(schoolId, courseId, input.checked);
           await renderSchoolCourses();
-          // Revoking a license can also drop educator assignments server-side —
+          // Revoking a license can also drop educator assignments —
           // refresh the educator panel too, in case the currently selected
           // educator was affected.
           const educatorId = document.getElementById("educator-select").value;
