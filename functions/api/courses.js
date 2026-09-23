@@ -4,6 +4,7 @@
 // Admin: the licensed catalog for whichever school they're previewing.
 
 import { getSessionUser, jsonResponse } from "../_shared/auth.js";
+import { computeLicenseStatus } from "../_shared/license.js";
 
 export async function onRequestGet({ request, env }) {
   const user = await getSessionUser(request, env);
@@ -27,11 +28,18 @@ export async function onRequestGet({ request, env }) {
     return jsonResponse({ courses: result.results });
   }
 
-  // admin / hod — full licensed catalog for the school, no personal progress
+  // admin / hod — full licensed catalog for the school, no personal progress,
+  // with license status attached (visible to these two roles per spec)
   const result = await env.DB.prepare(
     `SELECT c.* FROM courses c
      JOIN school_courses sc ON sc.course_id = c.id AND sc.school_id = ?
      ORDER BY c.title`
   ).bind(schoolId).all();
-  return jsonResponse({ courses: result.results });
+
+  const courses = result.results.map(c => ({
+    ...c,
+    license: computeLicenseStatus(c.license_start_date, c.license_end_date)
+  }));
+
+  return jsonResponse({ courses });
 }
