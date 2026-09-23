@@ -117,13 +117,6 @@
     ).join("")}</div>`;
   }
 
-  function lessonPlanDownloadHTML() {
-    if (currentLesson && currentLesson.lesson_plan_url) {
-      return `<a class="btn btn-ghost btn-sm btn-block" href="${currentLesson.lesson_plan_url}" target="_blank" rel="noopener">Download lesson plan (.docx)</a>`;
-    }
-    return `<p style="font-size:12px; color:var(--color-ink-soft); margin:0;">No downloadable lesson plan document uploaded yet.</p>`;
-  }
-
   async function selectLesson(lessonId) {
     currentLesson = lessons.find(l => l.id === lessonId);
     if (session.user.role === "educator" && currentLesson) {
