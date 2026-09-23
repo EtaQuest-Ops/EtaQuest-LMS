@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — EtaQuest LMS</title>
+<link rel="icon" href="assets/etaquest-logo-icon.jpg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <aside class="sidebar">
+    <div class="brand-row">
+      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+      <div class="brand-name" data-brand-name>EtaQuest</div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">Account</div>
+      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
+      <div class="nav-item active">Profile</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-name" id="user-name">—</div>
+      <div class="role-line" id="role-line">—</div>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Profile</h1>
+        <div class="school-tag">Manage your own account details</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="panel" style="max-width:480px;">
+        <div class="card-body">
+          <div class="field">
+            <label>Email</label>
+            <input type="text" id="profile-email" disabled style="background:var(--color-canvas); color:var(--color-ink-soft);">
+          </div>
+          <div class="field">
+            <label>Role</label>
+            <input type="text" id="profile-role" disabled style="background:var(--color-canvas); color:var(--color-ink-soft);">
+          </div>
+          <div class="field">
+            <label>School</label>
+            <input type="text" id="profile-school" disabled style="background:var(--color-canvas); color:var(--color-ink-soft);">
+          </div>
+          <p style="font-size:12px; color:var(--color-ink-soft); margin-top:-8px; margin-bottom:20px;">
+            Role and school assignment can only be changed by a Super Admin.
+          </p>
+
+          <div class="field">
+            <label for="profile-name">Name</label>
+            <input type="text" id="profile-name">
+          </div>
+          <div class="field">
+            <label for="profile-password">New password (leave blank to keep current)</label>
+            <input type="password" id="profile-password" placeholder="••••••••" autocomplete="new-password">
+          </div>
+
+          <p id="profile-error" style="color:var(--color-danger); font-size:13px; display:none; margin-bottom:12px;"></p>
+          <p id="profile-success" style="color:var(--color-teal); font-size:13px; display:none; margin-bottom:12px;">Saved.</p>
+
+          <button class="btn btn-primary btn-block" id="save-profile">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  (async () => {
+    let session;
+    try {
+      session = await eq_me();
+    } catch {
+      window.location.href = "index.html";
+      return;
+    }
+
+    document.getElementById("user-name").textContent = session.user.name;
+    document.getElementById("role-line").textContent =
+      { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[session.user.role];
+    if (session.school) eq_applyBranding(session.school);
+
+    const profile = await eq_getProfile();
+    document.getElementById("profile-email").value = profile.email;
+    document.getElementById("profile-role").value =
+      { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[profile.role];
+    document.getElementById("profile-school").value = session.school ? session.school.name : "All schools";
+    document.getElementById("profile-name").value = profile.name;
+
+    document.getElementById("save-profile").addEventListener("click", async () => {
+      const btn = document.getElementById("save-profile");
+      const errEl = document.getElementById("profile-error");
+      const okEl = document.getElementById("profile-success");
+      errEl.style.display = "none";
+      okEl.style.display = "none";
+
+      const name = document.getElementById("profile-name").value.trim();
+      const newPassword = document.getElementById("profile-password").value;
+
+      if (newPassword && newPassword.length < 8) {
+        errEl.textContent = "Password must be at least 8 characters.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      const updates = {};
+      if (name && name !== profile.name) updates.name = name;
+      if (newPassword) updates.newPassword = newPassword;
+
+      if (!Object.keys(updates).length) {
+        okEl.textContent = "Nothing to save.";
+        okEl.style.display = "block";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+      try {
+        await eq_updateProfile(updates);
+        document.getElementById("user-name").textContent = updates.name || session.user.name;
+        document.getElementById("profile-password").value = "";
+        okEl.textContent = "Saved.";
+        okEl.style.display = "block";
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = "block";
+      }
+      btn.disabled = false;
+      btn.textContent = "Save changes";
+    });
+  })();
+</script>
+
+</body>
+</html>
