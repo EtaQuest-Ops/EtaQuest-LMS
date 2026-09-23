@@ -181,11 +181,6 @@
               </div>`
             : ""
         }
-        ${
-          currentView === "plan" && currentLesson
-            ? `<div class="panel"><div class="card-body"><h3>Lesson plan document</h3>${lessonPlanDownloadHTML()}</div></div>`
-            : ""
-        }
         <div class="panel"><div class="card-body"><h3>About this curriculum</h3><p>${eq_escapeHtml(course.summary || "")}</p></div></div>
         <div class="panel"><div class="card-body"><h3>Category</h3><p>${eq_escapeHtml(course.category || "—")}</p></div></div>
         ${
