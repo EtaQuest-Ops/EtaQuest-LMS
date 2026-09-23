@@ -16,19 +16,8 @@
       <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
       <div class="brand-name" data-brand-name>EtaQuest</div>
     </div>
-    <nav class="nav-group">
-      <div class="nav-label">Manage</div>
-      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
-      <div class="nav-item active">Course access &amp; licensing</div>
-      <a class="nav-item" href="admin-users.html" style="text-decoration:none;">Users</a>
-      <a class="nav-item" href="admin-change-requests.html" style="text-decoration:none;">Change requests</a>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
-      <div class="role-line" id="role-line">—</div>
-      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
-    </div>
+    <nav class="nav-group" id="nav-group"></nav>
+    <div class="sidebar-footer" id="sidebar-footer"></div>
   </aside>
 
   <div class="main">
@@ -37,8 +26,9 @@
         <h1>Course access</h1>
         <div class="school-tag">Choose which schools and educators can reach which curricula</div>
       </div>
-      <div>
-        <select id="school-select" style="padding:8px 12px; border:1px solid var(--color-line); border-radius:4px; font-family:var(--font-body);"></select>
+      <div class="topbar-right">
+        <select id="school-select"></select>
+        <div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div>
       </div>
     </div>
 
@@ -57,24 +47,24 @@
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-header">
           <h2>Educator</h2>
-          <select id="educator-select" style="padding:8px 12px; border:1px solid var(--color-line); border-radius:4px; font-family:var(--font-body); min-width:220px;"></select>
+          <select id="educator-select" style="min-width:220px;"></select>
         </div>
       </div>
-      <div class="panel" id="educator-courses-panel">
+      <div class="panel" id="educator-courses-panel" style="margin-bottom:32px;">
         <div class="empty-state"><h3>Select an educator above</h3></div>
       </div>
 
       <div class="section-heading">
         <h2>School branding</h2>
       </div>
-      <div class="panel" style="margin-bottom:32px;">
+      <div class="panel" style="margin-bottom:32px; max-width:520px;">
         <div class="card-body">
           <div class="field">
             <label for="school-logo-url">Logo image URL for this school</label>
             <input type="text" id="school-logo-url" placeholder="https://example.com/logo.png">
           </div>
           <button class="btn btn-primary btn-sm" id="save-school-logo">Save logo</button>
-          <p id="logo-save-status" style="font-size:12px; color:var(--color-teal); margin-top:8px; display:none;">Saved.</p>
+          <p id="logo-save-status" style="font-size:12px; color:var(--color-success); margin-top:8px; display:none;">Saved.</p>
         </div>
       </div>
 
@@ -127,9 +117,6 @@
         try {
           await eq_setSchoolCourse(schoolId, courseId, input.checked);
           await renderSchoolCourses();
-          // Revoking a license can also drop educator assignments server-side —
-          // refresh the educator panel too, in case the currently selected
-          // educator was affected.
           const educatorId = document.getElementById("educator-select").value;
           if (educatorId) await renderEducatorCourses(educatorId);
         } catch (err) {
@@ -204,8 +191,8 @@
             return `
               <tr data-course-id="${c.id}">
                 <td>${eq_escapeHtml(c.title)}</td>
-                <td><input type="date" class="license-start" value="${c.startDate || ""}" style="padding:6px 8px; border:1px solid var(--color-line); border-radius:4px;"></td>
-                <td><input type="date" class="license-end" value="${c.endDate || ""}" style="padding:6px 8px; border:1px solid var(--color-line); border-radius:4px;"></td>
+                <td><input type="date" class="license-start" value="${c.startDate || ""}" style="padding:7px 9px; border:1px solid var(--color-line-strong); border-radius:6px;"></td>
+                <td><input type="date" class="license-end" value="${c.endDate || ""}" style="padding:7px 9px; border:1px solid var(--color-line-strong); border-radius:6px;"></td>
                 <td><span class="license-pill ${cls}">${eq_escapeHtml(c.label)}</span></td>
                 <td><button class="btn btn-ghost btn-sm save-license">Save</button></td>
               </tr>
@@ -246,12 +233,19 @@
 
     if (session.user.role !== "admin") {
       document.querySelector(".content").innerHTML =
-        `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>Course access management is Admin-only.</p></div></div>`;
+        `<div class="panel"><div class="empty-state">${eq_icon("shield", 30)}<h3>Not available</h3><p>Course access management is Admin-only.</p></div></div>`;
       return;
     }
 
-    document.getElementById("user-name").textContent = session.user.name;
-    document.getElementById("role-line").textContent = "Super Admin";
+    document.getElementById("nav-group").innerHTML = `
+      <div class="nav-label">Manage</div>
+      <a class="nav-item" href="dashboard.html">${eq_icon("home", 16)} Overview</a>
+      <div class="nav-item active">${eq_icon("shield", 16)} Course access &amp; licensing</div>
+      <a class="nav-item" href="admin-users.html">${eq_icon("users", 16)} Users</a>
+      <a class="nav-item" href="admin-change-requests.html">${eq_icon("clipboard", 16)} Change requests</a>
+    `;
+    eq_renderSidebarFooter(session.user);
+    eq_renderTopbarUtilities();
 
     const schoolSelect = document.getElementById("school-select");
     const schools = session.schools || [];

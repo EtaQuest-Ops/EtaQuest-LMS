@@ -18,26 +18,24 @@
     </div>
     <nav class="nav-group">
       <div class="nav-label">Classroom</div>
-      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">My courses</a>
+      <a class="nav-item" href="dashboard.html" id="nav-my-courses"></a>
     </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
-      <div class="role-line" id="role-line">—</div>
-      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
-    </div>
+    <div class="sidebar-footer" id="sidebar-footer"></div>
   </aside>
 
   <div class="main">
     <div class="topbar">
       <div>
+        <a class="back-link" href="dashboard.html">&larr; Back to my courses</a>
         <h1 id="course-title">Loading…</h1>
         <div class="school-tag" id="school-tag">—</div>
+      </div>
+      <div class="topbar-right">
+        <div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div>
       </div>
     </div>
 
     <div class="content">
-      <a class="back-link" href="dashboard.html">&larr; Back to my courses</a>
       <div id="license-banner"></div>
       <div class="course-viewer" id="course-viewer"></div>
     </div>
@@ -84,9 +82,7 @@
   }
 
   function embedBodyHTML() {
-    const isEducator = session.user.role === "educator";
     let inner;
-
     if (!currentLesson) {
       inner = `<div class="placeholder-note">No lessons added yet for "${eq_escapeHtml(course.title)}".</div>`;
     } else if (currentView === "lecture") {
@@ -102,19 +98,44 @@
         ? `<iframe src="${currentLesson.outline_embed_url}" style="width:100%;height:100%;border:none;" allow="fullscreen" allowfullscreen></iframe>`
         : `<div class="placeholder-note">Outline viewer will render here once a Canva link is added.<code>outline_embed_url is empty for "${eq_escapeHtml(currentLesson.title)}"</code></div>`;
     }
-
     return inner + watermarkHTML();
   }
 
   function renderViewTabs() {
     const tabs = [
-      { key: "lecture", label: "Lecture" },
-      { key: "plan", label: "Lesson Plan" },
-      { key: "outline", label: "Outline" }
+      { key: "lecture", label: "Lecture", icon: "book" },
+      { key: "plan", label: "Lesson Plan", icon: "fileText" },
+      { key: "outline", label: "Outline", icon: "clipboard" }
     ];
-    return `<div class="view-tabs">${tabs.map(t =>
-      `<button class="view-tab${currentView === t.key ? " active" : ""}" data-view="${t.key}">${t.label}</button>`
+    return `<div class="tab-bar">${tabs.map(t =>
+      `<button class="tab-bar-item${currentView === t.key ? " active" : ""}" data-view="${t.key}">${eq_icon(t.icon, 15)} ${t.label}</button>`
     ).join("")}</div>`;
+  }
+
+  function lessonPlanDownloadHTML() {
+    if (currentLesson && currentLesson.lesson_plan_url) {
+      return `<a class="btn btn-ghost btn-sm btn-block" href="${currentLesson.lesson_plan_url}" target="_blank" rel="noopener">${eq_icon("fileText", 14)} Download lesson plan (.docx)</a>`;
+    }
+    return `<p style="font-size:12px; color:var(--color-ink-faint); margin:0;">No downloadable lesson plan document uploaded yet.</p>`;
+  }
+
+  function moduleListHTML() {
+    const isEducator = session.user.role === "educator";
+    return `
+      <div class="module-list">
+        ${lessons.map(l => {
+          const status = isEducator ? lessonStatusOf(l) : null;
+          const dotClass = status === "completed" ? "completed" : status === "opened" ? "opened" : "";
+          return `
+            <button class="module-item${l.id === currentLesson.id ? " active" : ""}" data-lesson-id="${l.id}">
+              <span class="module-num">${l.sort_order}</span>
+              <span>${eq_escapeHtml(l.title)}</span>
+              ${isEducator ? `<span class="module-status-dot ${dotClass}"></span>` : ""}
+            </button>
+          `;
+        }).join("")}
+      </div>
+    `;
   }
 
   async function selectLesson(lessonId) {
@@ -123,7 +144,7 @@
       try {
         await eq_setLessonStatus(currentLesson.id, "open");
         currentLesson.opened_at = currentLesson.opened_at || new Date().toISOString();
-      } catch { /* non-fatal — viewing still works even if the ping fails */ }
+      } catch { /* non-fatal */ }
     }
     renderMain();
   }
@@ -154,7 +175,7 @@
             ? `<div class="lesson-status-row">
                 ${statusBadgeHTML(status)}
                 <button class="btn btn-sm ${status === "completed" ? "btn-ghost" : "btn-primary"}" id="toggle-complete">
-                  ${status === "completed" ? "Mark as not completed" : "Mark as completed"}
+                  ${status === "completed" ? eq_icon("xCircle", 14) + " Mark as not completed" : eq_icon("checkCircle", 14) + " Mark as completed"}
                 </button>
               </div>`
             : ""
@@ -165,32 +186,34 @@
           lessons.length
             ? `<div class="panel">
                 <div class="card-body">
-                  <div class="lesson-picker-label">Class ${currentLesson.sort_order}</div>
-                  <h3 style="margin-bottom:12px;">${eq_escapeHtml(currentLesson.title)}</h3>
-                  <select id="lesson-select">
-                    ${lessons.map(l => `<option value="${l.id}" ${l.id === currentLesson.id ? "selected" : ""}>Class ${l.sort_order} — ${eq_escapeHtml(l.title)}</option>`).join("")}
-                  </select>
+                  <div class="lesson-picker-label">Currently viewing · Class ${currentLesson.sort_order}</div>
+                  <h3 style="margin-bottom:14px; font-size:15px;">${eq_escapeHtml(currentLesson.title)}</h3>
+                  ${moduleListHTML()}
                 </div>
               </div>`
             : ""
         }
-        <div class="panel"><div class="card-body"><h3>About this curriculum</h3><p>${eq_escapeHtml(course.summary || "")}</p></div></div>
-        <div class="panel"><div class="card-body"><h3>Category</h3><p>${eq_escapeHtml(course.category || "—")}</p></div></div>
+        ${
+          currentView === "plan" && currentLesson
+            ? `<div class="panel"><div class="card-body"><h3 style="font-size:14px; margin-bottom:8px;">Lesson plan document</h3>${lessonPlanDownloadHTML()}</div></div>`
+            : ""
+        }
+        <div class="panel"><div class="card-body"><h3 style="font-size:14px; margin-bottom:8px;">About this curriculum</h3><p style="font-size:13px; color:var(--color-ink-soft); margin:0;">${eq_escapeHtml(course.summary || "")}</p></div></div>
+        <div class="panel"><div class="card-body"><h3 style="font-size:14px; margin-bottom:8px;">Category</h3><p style="font-size:13px; color:var(--color-ink-soft); margin:0;">${eq_escapeHtml(course.category || "—")}</p></div></div>
         ${
           (session.user.role === "educator" || session.user.role === "hod")
-            ? `<div class="panel"><div class="card-body"><button class="btn btn-ghost btn-sm btn-block" id="open-change-request">Request a change</button></div></div>`
+            ? `<div class="panel"><div class="card-body"><button class="btn btn-ghost btn-sm btn-block" id="open-change-request">${eq_icon("edit", 14)} Request a change</button></div></div>`
             : ""
         }
       </div>
     `;
 
-    document.querySelectorAll(".view-tab").forEach(btn => {
+    document.querySelectorAll(".tab-bar-item").forEach(btn => {
       btn.addEventListener("click", () => { currentView = btn.dataset.view; renderMain(); });
     });
-
-    if (lessons.length) {
-      document.getElementById("lesson-select").addEventListener("change", (e) => selectLesson(e.target.value));
-    }
+    document.querySelectorAll(".module-item").forEach(btn => {
+      btn.addEventListener("click", () => selectLesson(btn.dataset.lessonId));
+    });
 
     const toggleBtn = document.getElementById("toggle-complete");
     if (toggleBtn) {
@@ -216,8 +239,7 @@
   }
 
   function openChangeRequestForm() {
-    const existing = document.getElementById("cr-overlay");
-    if (existing) return;
+    if (document.getElementById("cr-overlay")) return;
 
     const overlay = document.createElement("div");
     overlay.id = "cr-overlay";
@@ -235,7 +257,7 @@
         </div>
         <div class="field">
           <label for="cr-text">What should be changed?</label>
-          <textarea id="cr-text" rows="4" placeholder="e.g. I noticed this section contains an outdated wiring diagram." style="width:100%; padding:10px 12px; border:1px solid var(--color-line); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:14px;"></textarea>
+          <textarea id="cr-text" rows="4" placeholder="e.g. I noticed this section contains an outdated wiring diagram."></textarea>
         </div>
         <p id="cr-error" style="color:var(--color-danger); font-size:13px; display:none;"></p>
         <div style="display:flex; gap:8px; margin-top:8px;">
@@ -281,9 +303,10 @@
       return;
     }
 
-    document.getElementById("user-name").textContent = session.user.name;
-    document.getElementById("role-line").textContent =
-      { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[session.user.role];
+    eq_renderSidebarFooter(session.user);
+    eq_renderTopbarUtilities();
+    document.getElementById("nav-my-courses").innerHTML = `${eq_icon("book", 16)} My courses`;
+
     if (session.school) {
       eq_applyBranding(session.school);
       document.getElementById("school-tag").textContent = session.school.name;
@@ -298,7 +321,7 @@
       data = await eq_getCourse(courseId);
     } catch (err) {
       document.getElementById("course-title").textContent = "Course not found";
-      viewer.innerHTML = `<div class="panel"><div class="empty-state"><h3>We couldn't load that course</h3><p>${eq_escapeHtml(err.message)}</p></div></div>`;
+      viewer.innerHTML = `<div class="panel"><div class="empty-state">${eq_icon("alertTriangle", 30)}<h3>We couldn't load that course</h3><p>${eq_escapeHtml(err.message)}</p></div></div>`;
       return;
     }
 

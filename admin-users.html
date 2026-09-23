@@ -16,19 +16,8 @@
       <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
       <div class="brand-name" data-brand-name>EtaQuest</div>
     </div>
-    <nav class="nav-group">
-      <div class="nav-label">Manage</div>
-      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
-      <a class="nav-item" href="admin-access.html" style="text-decoration:none;">Course access &amp; licensing</a>
-      <div class="nav-item active">Users</div>
-      <a class="nav-item" href="admin-change-requests.html" style="text-decoration:none;">Change requests</a>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
-      <div class="role-line" id="role-line">—</div>
-      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
-    </div>
+    <nav class="nav-group" id="nav-group"></nav>
+    <div class="sidebar-footer" id="sidebar-footer"></div>
   </aside>
 
   <div class="main">
@@ -37,6 +26,7 @@
         <h1>Users</h1>
         <div class="school-tag">Create accounts and assign roles</div>
       </div>
+      <div class="topbar-right"><div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div></div>
     </div>
 
     <div class="content" id="content">
@@ -55,18 +45,9 @@
       <div class="panel" style="margin-bottom:32px; max-width:520px;">
         <div class="panel-header"><h2>Create a user</h2></div>
         <div class="card-body">
-          <div class="field">
-            <label for="nu-name">Name</label>
-            <input type="text" id="nu-name">
-          </div>
-          <div class="field">
-            <label for="nu-email">Email</label>
-            <input type="email" id="nu-email">
-          </div>
-          <div class="field">
-            <label for="nu-password">Temporary password</label>
-            <input type="password" id="nu-password" autocomplete="new-password">
-          </div>
+          <div class="field"><label for="nu-name">Name</label><input type="text" id="nu-name"></div>
+          <div class="field"><label for="nu-email">Email</label><input type="email" id="nu-email"></div>
+          <div class="field"><label for="nu-password">Temporary password</label><input type="password" id="nu-password" autocomplete="new-password"></div>
           <div class="field">
             <label for="nu-role">Role</label>
             <select id="nu-role">
@@ -77,37 +58,36 @@
           </div>
           <div class="field" id="nu-school-field">
             <label for="nu-school">School</label>
-            <select id="nu-school">
-              ${schools.map(s => `<option value="${s.id}">${eq_escapeHtml(s.name)}</option>`).join("")}
-            </select>
+            <select id="nu-school">${schools.map(s => `<option value="${s.id}">${eq_escapeHtml(s.name)}</option>`).join("")}</select>
           </div>
           <p id="nu-error" style="color:var(--color-danger); font-size:13px; display:none; margin-bottom:12px;"></p>
-          <button class="btn btn-primary btn-block" id="nu-submit">Create user</button>
+          <button class="btn btn-primary btn-block" id="nu-submit">${eq_icon("plus", 15)} Create user</button>
         </div>
       </div>
     `;
   }
 
-  function roleLabel(role) {
-    return { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[role] || role;
+  function roleBadge(role) {
+    const map = { admin: ["Super Admin", "badge-admin"], hod: ["Head of Department", "badge-hod"], educator: ["Educator", "badge-educator"] };
+    const [label, cls] = map[role] || [role, "badge-educator"];
+    return `<span class="badge ${cls}">${label}</span>`;
   }
 
   async function renderUserList() {
     const users = await eq_getUsers();
     document.getElementById("user-list-panel").innerHTML = `
-      <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>School</th></tr></thead>
-        <tbody>
-          ${users.map(u => `
-            <tr>
-              <td>${eq_escapeHtml(u.name)}</td>
-              <td>${eq_escapeHtml(u.email)}</td>
-              <td><span class="badge ${u.role === 'admin' ? 'badge-admin' : 'badge-educator'}">${roleLabel(u.role)}</span></td>
-              <td>${eq_escapeHtml(u.school_name || "—")}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
+      <div class="user-row-list">
+        ${users.map(u => `
+          <div class="user-row">
+            ${eq_avatar(u.name, 36)}
+            <div>
+              <div class="user-row-name">${eq_escapeHtml(u.name)}</div>
+              <div class="user-row-sub">${eq_escapeHtml(u.email)} · ${eq_escapeHtml(u.school_name || "All schools")}</div>
+            </div>
+            <div class="user-row-meta">${roleBadge(u.role)}</div>
+          </div>
+        `).join("")}
+      </div>
     `;
   }
 
@@ -121,13 +101,19 @@
     }
 
     if (session.user.role !== "admin") {
-      document.getElementById("content").innerHTML =
-        `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>User management is Super Admin-only.</p></div></div>`;
+      document.getElementById("content").innerHTML = `<div class="panel"><div class="empty-state">${eq_icon("shield", 30)}<h3>Not available</h3><p>User management is Super Admin-only.</p></div></div>`;
       return;
     }
 
-    document.getElementById("user-name").textContent = session.user.name;
-    document.getElementById("role-line").textContent = "Super Admin";
+    document.getElementById("nav-group").innerHTML = `
+      <div class="nav-label">Manage</div>
+      <a class="nav-item" href="dashboard.html">${eq_icon("home", 16)} Overview</a>
+      <a class="nav-item" href="admin-access.html">${eq_icon("shield", 16)} Course access &amp; licensing</a>
+      <div class="nav-item active">${eq_icon("users", 16)} Users</div>
+      <a class="nav-item" href="admin-change-requests.html">${eq_icon("clipboard", 16)} Change requests</a>
+    `;
+    eq_renderSidebarFooter(session.user);
+    eq_renderTopbarUtilities();
     if (session.school) eq_applyBranding(session.school);
 
     schools = session.schools || [];
@@ -153,7 +139,7 @@
       const email = document.getElementById("nu-email").value.trim();
       const password = document.getElementById("nu-password").value;
       const role = roleSelect.value;
-      const schoolId = document.getElementById("nu-school").value;
+      const schoolIdVal = document.getElementById("nu-school").value;
 
       if (!name || !email || !password) {
         errEl.textContent = "Name, email, and password are all required.";
@@ -169,7 +155,7 @@
       btn.disabled = true;
       btn.textContent = "Creating…";
       try {
-        await eq_createUser({ name, email, password, role, schoolId: role === "admin" ? null : schoolId });
+        await eq_createUser({ name, email, password, role, schoolId: role === "admin" ? null : schoolIdVal });
         document.getElementById("nu-name").value = "";
         document.getElementById("nu-email").value = "";
         document.getElementById("nu-password").value = "";
@@ -179,7 +165,7 @@
         errEl.style.display = "block";
       }
       btn.disabled = false;
-      btn.textContent = "Create user";
+      btn.innerHTML = `${eq_icon("plus", 15)} Create user`;
     });
 
     await renderUserList();
