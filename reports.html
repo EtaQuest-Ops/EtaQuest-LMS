@@ -16,17 +16,8 @@
       <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
       <div class="brand-name" data-brand-name>EtaQuest</div>
     </div>
-    <nav class="nav-group">
-      <div class="nav-label">Department</div>
-      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
-      <div class="nav-item active">Educator reports</div>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
-      <div class="role-line" id="role-line">—</div>
-      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
-    </div>
+    <nav class="nav-group" id="nav-group"></nav>
+    <div class="sidebar-footer" id="sidebar-footer"></div>
   </aside>
 
   <div class="main">
@@ -35,6 +26,7 @@
         <h1>Educator reports</h1>
         <div class="school-tag" id="school-tag">—</div>
       </div>
+      <div class="topbar-right"><div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div></div>
     </div>
 
     <div class="content" id="content">
@@ -65,13 +57,18 @@
     }
 
     if (session.user.role !== "hod" && session.user.role !== "admin") {
-      document.getElementById("content").innerHTML = `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>Reports are only visible to Heads of Department and Admins.</p></div></div>`;
+      document.getElementById("content").innerHTML = `<div class="panel"><div class="empty-state">${eq_icon("shield", 30)}<h3>Not available</h3><p>Reports are only visible to Heads of Department and Admins.</p></div></div>`;
       return;
     }
 
-    document.getElementById("user-name").textContent = session.user.name;
-    document.getElementById("role-line").textContent =
-      { admin: "Super Admin", hod: "Head of Department" }[session.user.role];
+    document.getElementById("nav-group").innerHTML = `
+      <div class="nav-label">Department</div>
+      <a class="nav-item" href="dashboard.html">${eq_icon("home", 16)} Overview</a>
+      <div class="nav-item active">${eq_icon("chart", 16)} Educator reports</div>
+    `;
+
+    eq_renderSidebarFooter(session.user);
+    eq_renderTopbarUtilities();
     if (session.school) {
       eq_applyBranding(session.school);
       document.getElementById("school-tag").textContent = session.school.name;
@@ -81,7 +78,7 @@
     const content = document.getElementById("content");
 
     if (!educators.length) {
-      content.innerHTML = `<div class="panel"><div class="empty-state"><h3>No educators yet</h3><p>Once educators are added to your school, their progress will show up here.</p></div></div>`;
+      content.innerHTML = `<div class="panel"><div class="empty-state">${eq_icon("users", 30)}<h3>No educators yet</h3><p>Once educators are added to your school, their progress will show up here.</p></div></div>`;
       return;
     }
 
@@ -91,7 +88,7 @@
             const pct = c.total_modules ? Math.round((c.modules_completed / c.total_modules) * 100) : 0;
             return `
               <tr>
-                <td>${c.title}</td>
+                <td>${eq_escapeHtml(c.title)}</td>
                 <td style="min-width:200px;">
                   <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
                   <span class="progress-label">${c.modules_completed}/${c.total_modules} modules (${pct}%)</span>
@@ -100,12 +97,12 @@
               </tr>
             `;
           }).join("")
-        : `<tr><td colspan="3" style="color:var(--color-ink-soft)">No curricula assigned.</td></tr>`;
+        : `<tr><td colspan="3" style="color:var(--color-ink-faint)">No curricula assigned.</td></tr>`;
 
       return `
         <div class="panel">
           <div class="panel-header">
-            <h2>${edu.name}</h2>
+            <div class="table-user-cell">${eq_avatar(edu.name, 30)} <span class="name">${eq_escapeHtml(edu.name)}</span></div>
             <span class="count">${edu.loginCount} sign-in${edu.loginCount === 1 ? "" : "s"} · last active ${timeAgo(edu.lastLogin)}</span>
           </div>
           <table>

@@ -19,12 +19,7 @@
 
     <nav class="nav-group" id="nav-group"></nav>
 
-    <div class="sidebar-footer">
-      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
-      <div class="role-line" id="role-line">—</div>
-      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
-    </div>
+    <div class="sidebar-footer" id="sidebar-footer"></div>
   </aside>
 
   <div class="main">
@@ -34,7 +29,10 @@
         <h1 id="page-title">Overview</h1>
         <div class="school-tag" id="school-tag">—</div>
       </div>
-      <div id="topbar-actions"></div>
+      <div class="topbar-right">
+        <div id="topbar-actions"></div>
+        <div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div>
+      </div>
     </div>
 
     <div class="content" id="content">
@@ -54,31 +52,30 @@
   const pageTitle = document.getElementById("page-title");
   const topbarActions = document.getElementById("topbar-actions");
 
-  function roleLabel(role) {
-    return { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[role] || role;
+  function statCardHTML(icon, label, value, sub) {
+    return `
+      <div class="stat-card">
+        <div class="stat-label">${eq_icon(icon, 15)} ${label}</div>
+        <div class="stat-value">${value}</div>
+        ${sub ? `<div class="stat-sub">${sub}</div>` : ""}
+      </div>
+    `;
   }
 
   function progressBarHTML(completed, total) {
     const pct = total ? Math.round((completed / total) * 100) : 0;
     return `
-      <div class="progress-track">
-        <div class="progress-fill" style="width:${pct}%"></div>
-      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
       <span class="progress-label">${completed}/${total} modules (${pct}%)</span>
     `;
   }
 
-  // Simple category-based inline icon used when a course has no image_url yet.
-  function fallbackImageHTML(category) {
-    const icons = {
-      "Electronics & Programming": "🔌",
-      "Artificial Intelligence": "🤖",
-      "Robotics": "⚙️",
-      "Robotics & Construction": "🧩"
-    };
-    const icon = icons[category] || "📘";
-    return `<div class="course-card-image course-card-image-fallback">${icon}</div>`;
-  }
+  const CATEGORY_ICONS = {
+    "Electronics & Programming": "🔌",
+    "Artificial Intelligence": "🤖",
+    "Robotics": "⚙️",
+    "Robotics & Construction": "🧩"
+  };
 
   function licenseBadgeHTML(course) {
     if (!course.license) return "";
@@ -93,20 +90,16 @@
         ${
           course.image_url
             ? `<img class="course-card-image" src="${course.image_url}" alt="${eq_escapeHtml(course.title)}">`
-            : fallbackImageHTML(course.category)
+            : `<div class="course-card-image course-card-image-fallback">${CATEGORY_ICONS[course.category] || "📘"}</div>`
         }
-        <div class="course-card-hover">
-          <p>${eq_escapeHtml(course.summary || "")}</p>
-        </div>
+        <div class="course-card-hover"><p>${eq_escapeHtml(course.summary || "")}</p></div>
         <div class="card-body">
           ${licenseBadgeHTML(course)}
           <span class="category">${eq_escapeHtml(course.category || "")}</span>
           <h3>${eq_escapeHtml(course.title)}</h3>
           ${hasProgress ? `<div class="progress-wrap">${progressBarHTML(course.modules_completed, course.total_modules)}</div>` : ""}
         </div>
-        <div class="card-footer">
-          <span class="btn btn-ghost btn-sm btn-block">Open course</span>
-        </div>
+        <div class="card-footer"><span class="btn btn-ghost btn-sm btn-block">Open course</span></div>
       </a>
     `;
   }
@@ -114,16 +107,28 @@
   /* ---------------- Educator view ---------------- */
   async function renderEducatorView() {
     pageTitle.textContent = "My courses";
-    navGroup.innerHTML = `<div class="nav-label">Classroom</div><div class="nav-item active">My courses</div>`;
+    navGroup.innerHTML = `
+      <div class="nav-label">Classroom</div>
+      <div class="nav-item active">${eq_icon("book", 16)} My courses</div>
+    `;
 
     const courses = await eq_getCourses();
 
     if (!courses.length) {
-      content.innerHTML = `<div class="panel"><div class="empty-state"><h3>No courses assigned yet</h3><p>Your admin hasn't assigned any curricula to your account.</p></div></div>`;
+      content.innerHTML = `<div class="panel"><div class="empty-state">${eq_icon("book", 30)}<h3>No courses assigned yet</h3><p>Your admin hasn't assigned any curricula to your account.</p></div></div>`;
       return;
     }
 
+    const totalModules = courses.reduce((s, c) => s + (c.total_modules || 0), 0);
+    const completedModules = courses.reduce((s, c) => s + (c.modules_completed || 0), 0);
+    const rate = totalModules ? Math.round((completedModules / totalModules) * 100) : 0;
+
     content.innerHTML = `
+      <div class="stat-grid">
+        ${statCardHTML("book", "Assigned curricula", courses.length)}
+        ${statCardHTML("checkCircle", "Lessons completed", `${completedModules}/${totalModules}`)}
+        ${statCardHTML("chart", "Overall completion", `${rate}%`)}
+      </div>
       <div class="section-heading">
         <h2>Assigned to you</h2>
         <span class="count">${courses.length} curriculum${courses.length > 1 ? "s" : ""}</span>
@@ -137,16 +142,26 @@
     pageTitle.textContent = "Department overview";
     navGroup.innerHTML = `
       <div class="nav-label">Department</div>
-      <div class="nav-item active">Overview</div>
-      <a class="nav-item" href="reports.html" style="text-decoration:none;">Educator reports</a>
+      <div class="nav-item active">${eq_icon("home", 16)} Overview</div>
+      <a class="nav-item" href="reports.html">${eq_icon("chart", 16)} Educator reports</a>
     `;
 
-    const courses = await eq_getCourses();
+    const [courses, educators] = await Promise.all([eq_getCourses(), eq_getReports()]);
+    const totalLogins = educators.reduce((s, e) => s + e.loginCount, 0);
+    let totalDone = 0, totalPossible = 0;
+    educators.forEach(e => e.courses.forEach(c => { totalDone += c.modules_completed; totalPossible += c.total_modules; }));
+    const avgRate = totalPossible ? Math.round((totalDone / totalPossible) * 100) : 0;
 
     content.innerHTML = `
-      <div class="panel" style="padding:20px 24px; display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+      <div class="stat-grid">
+        ${statCardHTML("users", "Educators", educators.length)}
+        ${statCardHTML("chart", "Avg. completion", `${avgRate}%`)}
+        ${statCardHTML("clock", "Total sign-ins", totalLogins)}
+      </div>
+
+      <div class="panel" style="padding:20px 24px; display:flex; align-items:center; justify-content:space-between;">
         <div>
-          <h2 style="font-size:16px; margin-bottom:4px;">Educator reports</h2>
+          <h2 style="font-size:15px; margin-bottom:4px;">Educator reports</h2>
           <p style="font-size:13px; color:var(--color-ink-soft); margin:0;">See curriculum completion and login activity for every educator in your school.</p>
         </div>
         <a href="reports.html" class="btn btn-primary">View reports</a>
@@ -165,17 +180,17 @@
     pageTitle.textContent = "Admin overview";
     navGroup.innerHTML = `
       <div class="nav-label">Manage</div>
-      <div class="nav-item active">Overview</div>
-      <a class="nav-item" href="admin-access.html" style="text-decoration:none;">Course access &amp; licensing</a>
-      <a class="nav-item" href="admin-users.html" style="text-decoration:none;">Users</a>
-      <a class="nav-item" href="admin-change-requests.html" style="text-decoration:none;">Change requests</a>
+      <div class="nav-item active">${eq_icon("home", 16)} Overview</div>
+      <a class="nav-item" href="admin-access.html">${eq_icon("shield", 16)} Course access &amp; licensing</a>
+      <a class="nav-item" href="admin-users.html">${eq_icon("users", 16)} Users</a>
+      <a class="nav-item" href="admin-change-requests.html">${eq_icon("clipboard", 16)} Change requests</a>
     `;
 
     const schools = session.schools || [];
     if (!previewSchoolId && schools.length) previewSchoolId = schools[0].id;
 
     topbarActions.innerHTML = `
-      <select id="admin-school-select" style="padding:8px 12px; border:1px solid var(--color-line); border-radius:4px; font-family:var(--font-body);">
+      <select id="admin-school-select">
         ${schools.map(s => `<option value="${s.id}" ${s.id === previewSchoolId ? "selected" : ""}>${eq_escapeHtml(s.name)}</option>`).join("")}
       </select>
     `;
@@ -187,35 +202,43 @@
       await renderAdminView();
     });
 
-    const [courses, educators, allSchools] = await Promise.all([
+    const [courses, educators, allSchools, changeRequests] = await Promise.all([
       eq_getCourses(previewSchoolId),
       eq_getReports(previewSchoolId),
-      eq_getSchools()
+      eq_getSchools(),
+      eq_getChangeRequests().catch(() => [])
     ]);
+    const pendingCount = changeRequests.filter(r => r.status === "pending").length;
 
     content.innerHTML = `
+      <div class="stat-grid">
+        ${statCardHTML("building", "Schools", allSchools.length)}
+        ${statCardHTML("book", "Licensed curricula", courses.length, "at this school")}
+        ${statCardHTML("users", "Educators", educators.length, "at this school")}
+        ${statCardHTML("clipboard", "Pending requests", pendingCount)}
+      </div>
+
       <div class="section-heading">
         <h2>Licensed curricula</h2>
         <span class="count">${courses.length} of 4 total curricula</span>
       </div>
-      <div class="course-grid" style="margin-bottom:32px;">${courses.map(courseCardHTML).join("")}</div>
+      <div class="course-grid" style="margin-bottom:28px;">${courses.map(courseCardHTML).join("")}</div>
 
       <div class="panel">
         <div class="panel-header"><h2>Educators at this school</h2></div>
         <table>
-          <thead><tr><th>Name</th><th>Role</th><th>Logins</th><th>Assigned curricula</th></tr></thead>
+          <thead><tr><th>Educator</th><th>Logins</th><th>Assigned curricula</th></tr></thead>
           <tbody>
             ${
               educators.length
                 ? educators.map(e => `
                   <tr>
-                    <td>${eq_escapeHtml(e.name)}</td>
-                    <td><span class="badge badge-educator">Educator</span></td>
+                    <td><div class="table-user-cell">${eq_avatar(e.name, 28)} <span class="name">${eq_escapeHtml(e.name)}</span></div></td>
                     <td>${e.loginCount}</td>
                     <td>${e.courses.map(c => eq_escapeHtml(c.title)).join(", ") || "—"}</td>
                   </tr>
                 `).join("")
-                : `<tr><td colspan="4" style="color:var(--color-ink-soft)">No educators at this school yet.</td></tr>`
+                : `<tr><td colspan="3" style="color:var(--color-ink-faint)">No educators at this school yet.</td></tr>`
             }
           </tbody>
         </table>
@@ -241,8 +264,8 @@
       return;
     }
 
-    document.getElementById("user-name").textContent = session.user.name;
-    document.getElementById("role-line").textContent = roleLabel(session.user.role);
+    eq_renderSidebarFooter(session.user);
+    eq_renderTopbarUtilities();
     document.getElementById("welcome-line").textContent = `Welcome, ${session.user.name}`;
 
     if (session.school) {

@@ -16,27 +16,17 @@
       <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
       <div class="brand-name" data-brand-name>EtaQuest</div>
     </div>
-    <nav class="nav-group">
-      <div class="nav-label">Manage</div>
-      <a class="nav-item" href="dashboard.html" style="text-decoration:none;">Overview</a>
-      <a class="nav-item" href="admin-access.html" style="text-decoration:none;">Course access &amp; licensing</a>
-      <a class="nav-item" href="admin-users.html" style="text-decoration:none;">Users</a>
-      <div class="nav-item active">Change requests</div>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="user-name" id="user-name" style="text-decoration:none; display:block; color:inherit;">—</a>
-      <div class="role-line" id="role-line">—</div>
-      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="margin-bottom:8px; text-decoration:none;">Profile</a>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">Log out</button>
-    </div>
+    <nav class="nav-group" id="nav-group"></nav>
+    <div class="sidebar-footer" id="sidebar-footer"></div>
   </aside>
 
   <div class="main">
     <div class="topbar">
       <div>
         <h1>Change requests</h1>
-        <div class="school-tag">Feedback submitted by educators and Heads of Department about course material</div>
+        <div class="school-tag">Feedback submitted by educators and HODs about course material</div>
       </div>
+      <div class="topbar-right"><div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div></div>
     </div>
 
     <div class="content" id="content">
@@ -65,7 +55,7 @@
     const requests = await eq_getChangeRequests();
 
     if (!requests.length) {
-      content.innerHTML = `<div class="panel"><div class="empty-state"><h3>No requests yet</h3><p>Change requests submitted by educators and HODs will show up here.</p></div></div>`;
+      content.innerHTML = `<div class="panel"><div class="empty-state">${eq_icon("clipboard", 30)}<h3>No requests yet</h3><p>Change requests submitted by educators and HODs will show up here.</p></div></div>`;
       return;
     }
 
@@ -76,7 +66,7 @@
             <h2 style="font-size:14px;">${eq_escapeHtml(r.course_title)}${r.lesson_title ? ` — ${eq_escapeHtml(r.lesson_title)}` : ""}</h2>
             <span class="count">${eq_escapeHtml(r.user_name)} (${r.user_role === "hod" ? "HOD" : "Educator"}) · ${timeAgo(r.created_at)}${r.page_note ? ` · ${eq_escapeHtml(r.page_note)}` : ""}</span>
           </div>
-          <select class="cr-status" style="padding:6px 10px; border:1px solid var(--color-line); border-radius:4px; font-family:var(--font-body); font-size:13px;">
+          <select class="cr-status">
             ${STATUS_OPTIONS.map(s => `<option value="${s}" ${s === r.status ? "selected" : ""}>${STATUS_LABEL[s]}</option>`).join("")}
           </select>
         </div>
@@ -110,13 +100,19 @@
     }
 
     if (session.user.role !== "admin") {
-      document.getElementById("content").innerHTML =
-        `<div class="panel"><div class="empty-state"><h3>Not available</h3><p>Change requests are visible to Super Admin only.</p></div></div>`;
+      document.getElementById("content").innerHTML = `<div class="panel"><div class="empty-state">${eq_icon("shield", 30)}<h3>Not available</h3><p>Change requests are visible to Super Admin only.</p></div></div>`;
       return;
     }
 
-    document.getElementById("user-name").textContent = session.user.name;
-    document.getElementById("role-line").textContent = "Super Admin";
+    document.getElementById("nav-group").innerHTML = `
+      <div class="nav-label">Manage</div>
+      <a class="nav-item" href="dashboard.html">${eq_icon("home", 16)} Overview</a>
+      <a class="nav-item" href="admin-access.html">${eq_icon("shield", 16)} Course access &amp; licensing</a>
+      <a class="nav-item" href="admin-users.html">${eq_icon("users", 16)} Users</a>
+      <div class="nav-item active">${eq_icon("clipboard", 16)} Change requests</div>
+    `;
+    eq_renderSidebarFooter(session.user);
+    eq_renderTopbarUtilities();
     if (session.school) eq_applyBranding(session.school);
 
     await renderRequests();
