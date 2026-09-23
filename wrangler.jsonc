@@ -12,5 +12,13 @@
       "database_name": "etaquest-lms",
       "database_id": "d0c107ab-c90a-49df-b362-7a8e4b8761ad"
     }
-  ]
+  ],
+"previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_id": "d0c107ab-c90a-49df-b362-7a8e4b8761ad"
+      }
+    ]
+  }
 }
