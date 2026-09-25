@@ -249,6 +249,7 @@ button { font-family: var(--font-body); cursor: pointer; }
 }
 .eq-course-card-locked { filter: grayscale(0.35); opacity: 0.82; }
 .eq-course-card-locked .eq-course-card-image { filter: grayscale(0.5); }
+.eq-course-card-locked .eq-course-card-image:hover { filter: grayscale(0.5); }
 
 /* ---------- Panels: flat, hairline border, no heavy shadow ---------- */
 
