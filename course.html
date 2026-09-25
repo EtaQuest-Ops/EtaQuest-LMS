@@ -68,9 +68,13 @@
     for (let i = 0; i < 6; i++) tiles += `<span>${label}</span>`;
     return `<div class="embed-watermark" aria-hidden="true">${tiles}</div>`;
   }
-
+  
   function embedBodyHTML() {
     let inner;
+    if (licenseLocked) {
+      inner = `<div class="placeholder-note">${eq_icon("shield", 30)}<h3 style="color:#fff; margin:10px 0 6px;">Content locked</h3><p>This curriculum's license has expired. Please contact your Super Admin to renew access.</p></div>`;
+      return inner; // no watermark needed — there's nothing to protect
+    }
     if (!currentLesson) {
       inner = `<div class="placeholder-note">No lessons added yet for "${eq_escapeHtml(course.title)}".</div>`;
     } else if (currentView === "lecture") {
@@ -119,7 +123,7 @@
 
   async function selectLesson(lessonId) {
     currentLesson = lessons.find(l => l.id === lessonId);
-    if (session.user.role === "educator" && currentLesson) {
+    if (session.user.role === "educator" && currentLesson && !licenseLocked) {
       try {
         await eq_setLessonStatus(currentLesson.id, "open");
         currentLesson.opened_at = currentLesson.opened_at || new Date().toISOString();
@@ -127,7 +131,7 @@
     }
     renderMain();
   }
-
+  
   function attachEmbedProtections() {
     const frame = document.getElementById("embed-frame");
     if (!frame) return;
@@ -151,7 +155,7 @@
         <div class="embed-frame" id="embed-frame" style="margin-top:16px;">${embedBodyHTML()}</div>
         ${lessons.length ? lessonChipRowHTML() : ""}
         ${
-          isEducator && currentLesson
+          isEducator && currentLesson && !licenseLocked
             ? `<div class="lesson-status-row">
                 ${statusBadgeHTML(status)}
                 <button class="btn btn-sm ${status === "completed" ? "btn-ghost" : "btn-primary"}" id="toggle-complete">
@@ -288,12 +292,13 @@
       return;
     }
 
-    course = data.course;
+        course = data.course;
     lessons = data.lessons;
     currentLesson = lessons[0] || null;
+    licenseLocked = !!data.locked;
     document.getElementById("course-title").textContent = course.title;
 
-    if (session.user.role === "educator" && currentLesson) {
+    if (session.user.role === "educator" && currentLesson && !licenseLocked) {
       try {
         await eq_setLessonStatus(currentLesson.id, "open");
         currentLesson.opened_at = currentLesson.opened_at || new Date().toISOString();
@@ -302,7 +307,11 @@
 
     if (data.license) {
       const cls = { active: "license-active", expired: "license-expired", upcoming: "license-upcoming", unset: "license-unset" }[data.license.status];
-      document.getElementById("license-banner").innerHTML = `<div class="license-pill ${cls}" style="margin-bottom:20px;">${eq_escapeHtml(data.license.label)}</div>`;
+      document.getElementById("license-banner").innerHTML =
+        `<div class="license-pill ${cls}">${eq_escapeHtml(data.license.label)}</div>`;
+    } else if (data.locked) {
+      document.getElementById("license-banner").innerHTML =
+        `<div class="license-pill license-expired">${eq_icon("shield", 13)} This curriculum is locked — license expired</div>`;
     }
 
     renderMain();
