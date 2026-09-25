@@ -105,7 +105,7 @@ button { font-family: var(--font-body); cursor: pointer; }
   width: 100%; max-width: 380px; background: var(--color-surface);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 44px 38px;
 }
-.login-card-outer .login-logo { height: 32px; width: auto; display: block; margin: 0 auto 30px; }
+.login-card-outer .login-logo { height: 64px; width: auto; display: block; margin: 0 auto 30px; }
 .login-card-outer .eyebrow { color: var(--color-ink-faint); font-size: 13px; text-align: center; margin-bottom: 4px; }
 .login-card-outer h2 { font-size: 23px; text-align: center; margin-bottom: 30px; }
 
