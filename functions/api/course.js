@@ -13,6 +13,10 @@ export async function onRequestGet({ request, env }) {
   const course = await env.DB.prepare(`SELECT * FROM courses WHERE id = ?`).bind(id).first();
   if (!course) return jsonResponse({ error: "Course not found" }, 404);
 
+  // Admin manages licenses, so admin is never locked out of content.
+  const licenseStatus = computeLicenseStatus(course.license_start_date, course.license_end_date);
+  const locked = licenseStatus.status === "expired" && user.role !== "admin";
+
   let lessonsResult;
   if (user.role === "educator") {
     lessonsResult = await env.DB.prepare(
@@ -29,6 +33,19 @@ export async function onRequestGet({ request, env }) {
     ).bind(id).all();
   }
 
+  // Strip actual content server-side when locked — a locked course can't
+  // be viewed by hitting the API directly either, not just via the UI.
+  let lessons = lessonsResult.results;
+  if (locked) {
+    lessons = lessons.map(l => ({
+      ...l,
+      embed_url: null,
+      lesson_plan_url: null,
+      lesson_plan_embed_url: null,
+      outline_embed_url: null
+    }));
+  }
+
   let progress = null;
   if (user.role === "educator") {
     const row = await env.DB.prepare(
@@ -37,16 +54,16 @@ export async function onRequestGet({ request, env }) {
     progress = row ? row.modules_completed : 0;
   }
 
-  // License visibility: Admin (super-admin) and HOD only, per spec —
-  // educators aren't shown licensing details.
+  // License visibility: Admin and HOD only, per spec — educators aren't
+  // shown licensing details, but everyone gets the `locked` boolean.
   let license = null;
   if (user.role === "admin" || user.role === "hod") {
-    license = computeLicenseStatus(course.license_start_date, course.license_end_date);
+    license = licenseStatus;
     license.startDate = course.license_start_date;
     license.endDate = course.license_end_date;
   }
 
-  const totalLessons = lessonsResult.results.length || course.total_modules;
+  const totalLessons = lessons.length || course.total_modules;
 
-  return jsonResponse({ course, lessons: lessonsResult.results, progress, totalLessons, license });
+  return jsonResponse({ course, lessons, progress, totalLessons, license, locked });
 }
