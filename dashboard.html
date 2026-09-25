@@ -164,6 +164,17 @@
     ]);
     eq_renderWorkspaceHeader({ eyebrow: `Welcome, ${session.user.name}`, title: "Admin overview", sub: "All schools" });
 
+    function adminTabBarHTML() {
+    const tabs = [
+      { key: "curricula", label: "Curricula", icon: "book" },
+      { key: "educators", label: "Educators", icon: "users" },
+      { key: "schools", label: "Schools", icon: "building" }
+    ];
+    return `<div class="tab-bar">${tabs.map(t =>
+      `<button class="tab-bar-item${adminTab === t.key ? " active" : ""}" data-tab="${t.key}">${eq_icon(t.icon, 15)} ${t.label}</button>`
+    ).join("")}</div>`;
+  }
+    
     const schools = session.schools || [];
     selectedSchoolIdForDetail = selectedSchoolIdForDetail || schools[0]?.id;
 
