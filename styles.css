@@ -421,3 +421,63 @@ tr:last-child td { border-bottom: none; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* =========================================================
+   HEXAGON ACCENTS
+   Pure CSS/inline SVG. No HTML changes, no extra assets.
+   ========================================================= */
+
+:root {
+  --color-teal: #54A4A6;
+}
+
+/* 1. Faint honeycomb texture behind every page.
+      Cards are opaque, so it only shows in the gaps. */
+html, body {
+  background-color: var(--color-canvas);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='52' viewBox='0 0 90 52'%3E%3Cpath d='M0 26 L15 0 L45 0 L60 26 L45 52 L15 52 Z M60 26 L90 26' fill='none' stroke='rgba(5,55,87,0.045)' stroke-width='1.2'/%3E%3C/svg%3E");
+  background-size: 90px 52px;
+}
+
+/* 2. Login page: navy + teal hex cluster in the top-left corner,
+      like the company profile cover. */
+.login-shell { position: relative; overflow: hidden; }
+.login-shell::before {
+  content: "";
+  position: absolute; top: -20px; left: -30px;
+  width: 340px; height: 250px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -10 340 250'%3E%3Cpolygon points='30,100 70,30.7 150,30.7 190,100 150,169.3 70,169.3' fill='rgb(31,52,75)'/%3E%3Cpolygon points='180,35 202.5,-4 247.5,-4 270,35 247.5,74 202.5,74' fill='rgb(84,164,166)'/%3E%3Cpolygon points='10,25 22.5,3.4 47.5,3.4 60,25 47.5,46.6 22.5,46.6' fill='rgb(84,164,166)'/%3E%3Cpolygon points='-45,140 -22.5,101 22.5,101 45,140 22.5,179 -22.5,179' fill='rgb(84,164,166)'/%3E%3Cpolygon points='53,195 64,176 86,176 97,195 86,214 64,214' fill='rgb(31,52,75)'/%3E%3C/svg%3E") no-repeat top left / contain;
+}
+.login-shell::after {                 /* smaller mirrored accent, bottom-right */
+  content: "";
+  position: absolute; bottom: -60px; right: -60px;
+  width: 220px; height: 190px;
+  pointer-events: none; opacity: 0.9;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 190'%3E%3Cpolygon points='60,95 90,43 150,43 180,95 150,147 90,147' fill='rgba(248,128,76,0.85)'/%3E%3Cpolygon points='150,150 165,124 195,124 210,150 195,176 165,176' fill='rgb(84,164,166)'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.login-card-outer { position: relative; z-index: 1; }
+
+/* 3. Topbar: translucent hexes inside the gradient band */
+.topbar { overflow: hidden; }
+.topbar::after {
+  content: "";
+  position: absolute; top: 0; right: 240px; bottom: 0;
+  width: 280px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 280 120' preserveAspectRatio='xMidYMid slice'%3E%3Cpolygon points='140,40 170,-12 230,-12 260,40 230,92 170,92' fill='rgba(255,255,255,0.07)'/%3E%3Cpolygon points='88,95 104,67 136,67 152,95 136,123 104,123' fill='rgba(84,164,166,0.45)'/%3E%3Cpolygon points='220,110 235,84 265,84 280,110 265,136 235,136' fill='rgba(84,164,166,0.3)'/%3E%3C/svg%3E") no-repeat center / cover;
+}
+.topbar > * { position: relative; z-index: 1; }
+
+/* 4. Sidebar: one subtle hex near the bottom, behind the nav */
+.sidebar::before {
+  content: "";
+  position: absolute; left: -40px; bottom: 90px;
+  width: 150px; height: 130px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 150 130'%3E%3Cpolygon points='0,65 37.5,0 112.5,0 150,65 112.5,130 37.5,130' fill='rgba(84,164,166,0.14)'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+.sidebar > * { position: relative; z-index: 1; }
+
+@media (max-width: 900px) {
+  .topbar::after, .sidebar::before, .login-shell::after { display: none; }
+  .login-shell::before { width: 200px; height: 147px; }
+}
