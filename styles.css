@@ -447,7 +447,7 @@ html, body {
   position: absolute; top: -20px; left: -30px;
   width: 340px; height: 250px;
   pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -10 340 250'%3E%3Cpolygon points='30,100 70,30.7 150,30.7 190,100 150,169.3 70,169.3' fill='rgb(31,52,75)'/%3E%3Cpolygon points='180,35 202.5,-4 247.5,-4 270,35 247.5,74 202.5,74' fill='rgb(84,164,166)'/%3E%3Cpolygon points='10,25 22.5,3.4 47.5,3.4 60,25 47.5,46.6 22.5,46.6' fill='rgb(84,164,166)'/%3E%3Cpolygon points='-45,140 -22.5,101 22.5,101 45,140 22.5,179 -22.5,179' fill='rgb(84,164,166)'/%3E%3Cpolygon points='53,195 64,176 86,176 97,195 86,214 64,214' fill='rgb(31,52,75)'/%3E%3C/svg%3E") no-repeat top left / contain;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -10 340 250'%3E%3Cpolygon points='30,100 70,30.7 150,30.7 190,100 150,169.3 70,169.3' fill='rgb(84,164,166)'/%3E%3Cpolygon points='180,35 202.5,-4 247.5,-4 270,35 247.5,74 202.5,74' fill='rgb(84,164,166)'/%3E%3Cpolygon points='10,25 22.5,3.4 47.5,3.4 60,25 47.5,46.6 22.5,46.6' fill='rgb(84,164,166)'/%3E%3Cpolygon points='-45,140 -22.5,101 22.5,101 45,140 22.5,179 -22.5,179' fill='rgb(84,164,166)'/%3E%3Cpolygon points='53,195 64,176 86,176 97,195 86,214 64,214' fill='rgb(31,52,75)'/%3E%3C/svg%3E") no-repeat top left / contain;
 }
 .login-shell::after {                 /* smaller mirrored accent, bottom-right */
   content: "";
