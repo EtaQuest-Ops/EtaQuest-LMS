@@ -25,7 +25,12 @@ export async function onRequestGet({ request, env }) {
        LEFT JOIN curriculum_progress cp ON cp.course_id = c.id AND cp.user_id = ?
        ORDER BY c.title`
     ).bind(schoolId, user.id, user.id).all();
-    return jsonResponse({ courses: result.results });
+
+    const courses = result.results.map(c => ({
+      ...c,
+      locked: computeLicenseStatus(c.license_start_date, c.license_end_date).status === "expired"
+    }));
+    return jsonResponse({ courses });
   }
 
   // admin / hod — full licensed catalog for the school, no personal progress,
