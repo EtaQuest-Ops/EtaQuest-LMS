@@ -10,33 +10,24 @@
 <body>
 
 <div class="app-shell">
+  <nav class="rail">
+    <div class="rail-logo"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+    <div class="rail-nav" id="rail-nav"></div>
+    <div class="rail-footer" id="rail-footer"></div>
+  </nav>
 
-  <aside class="sidebar">
-    <div class="brand-row">
-      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
-      <div class="brand-name" data-brand-name>EtaQuest</div>
-    </div>
-    <nav class="nav-group">
-      <div class="nav-label">Account</div>
-      <a class="nav-item" href="dashboard.html" id="nav-overview"></a>
-      <div class="nav-item active" id="nav-profile"></div>
-    </nav>
-    <div class="sidebar-footer" id="sidebar-footer"></div>
-  </aside>
-
-  <div class="main">
-    <div class="topbar">
+  <main class="workspace">
+    <header class="workspace-header">
       <div>
         <h1>Profile</h1>
-        <div class="school-tag">Manage your own account details</div>
+        <div class="workspace-sub">Manage your own account details</div>
       </div>
-      <div class="topbar-right"><div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div></div>
-    </div>
+    </header>
 
-    <div class="content">
+    <div class="workspace-content">
       <div class="panel" style="max-width:480px;">
         <div class="card-body">
-          <div style="display:flex; align-items:center; gap:14px; margin-bottom:22px;">
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:24px;">
             <span id="profile-avatar"></span>
             <div>
               <div style="font-weight:700; font-size:16px;" id="profile-name-display">—</div>
@@ -72,8 +63,7 @@
         </div>
       </div>
     </div>
-  </div>
-
+  </main>
 </div>
 
 <script src="app.js"></script>
@@ -87,10 +77,11 @@
       return;
     }
 
-    document.getElementById("nav-overview").innerHTML = `${eq_icon("home", 16)} Overview`;
-    document.getElementById("nav-profile").innerHTML = `${eq_icon("user", 16)} Profile`;
-    eq_renderSidebarFooter(session.user);
-    eq_renderTopbarUtilities();
+    eq_renderRailNav([
+      { href: "dashboard.html", icon: "home", label: "Overview" },
+      { href: null, icon: "user", label: "Profile", active: true }
+    ]);
+    eq_renderRailFooter(session.user);
     if (session.school) eq_applyBranding(session.school);
 
     const profile = await eq_getProfile();
@@ -135,7 +126,7 @@
           profile.name = updates.name;
           document.getElementById("profile-name-display").textContent = updates.name;
           document.getElementById("profile-avatar").innerHTML = eq_avatar(updates.name, 44);
-          eq_renderSidebarFooter({ ...session.user, name: updates.name });
+          eq_renderRailFooter({ ...session.user, name: updates.name });
         }
         document.getElementById("profile-password").value = "";
         okEl.textContent = "Saved.";

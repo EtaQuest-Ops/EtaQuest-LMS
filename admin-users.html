@@ -10,30 +10,23 @@
 <body>
 
 <div class="app-shell">
+  <nav class="rail">
+    <div class="rail-logo"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+    <div class="rail-nav" id="rail-nav"></div>
+    <div class="rail-footer" id="rail-footer"></div>
+  </nav>
 
-  <aside class="sidebar">
-    <div class="brand-row">
-      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
-      <div class="brand-name" data-brand-name>EtaQuest</div>
-    </div>
-    <nav class="nav-group" id="nav-group"></nav>
-    <div class="sidebar-footer" id="sidebar-footer"></div>
-  </aside>
-
-  <div class="main">
-    <div class="topbar">
+  <main class="workspace">
+    <header class="workspace-header">
       <div>
         <h1>Users</h1>
-        <div class="school-tag">Create accounts and assign roles</div>
+        <div class="workspace-sub">Create accounts and assign roles</div>
       </div>
-      <div class="topbar-right"><div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div></div>
-    </div>
-
-    <div class="content" id="content">
+    </header>
+    <div class="workspace-content" id="content">
       <div class="empty-state"><h3>Loading…</h3></div>
     </div>
-  </div>
-
+  </main>
 </div>
 
 <script src="app.js"></script>
@@ -76,19 +69,18 @@
   async function renderUserList() {
     const users = await eq_getUsers();
     document.getElementById("user-list-panel").innerHTML = `
-      <table>
-        <thead><tr><th>User</th><th>Email</th><th>Role</th><th>School</th></tr></thead>
-        <tbody>
-          ${users.map(u => `
-            <tr>
-              <td><div class="table-user-cell">${eq_avatar(u.name, 28)} <span class="name">${eq_escapeHtml(u.name)}</span></div></td>
-              <td>${eq_escapeHtml(u.email)}</td>
-              <td>${roleBadge(u.role)}</td>
-              <td>${eq_escapeHtml(u.school_name || "—")}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
+      <div class="user-row-list">
+        ${users.map(u => `
+          <div class="user-row">
+            ${eq_avatar(u.name, 36)}
+            <div>
+              <div class="user-row-name">${eq_escapeHtml(u.name)}</div>
+              <div class="user-row-sub">${eq_escapeHtml(u.email)} · ${eq_escapeHtml(u.school_name || "All schools")}</div>
+            </div>
+            <div class="user-row-meta">${roleBadge(u.role)}</div>
+          </div>
+        `).join("")}
+      </div>
     `;
   }
 
@@ -106,15 +98,13 @@
       return;
     }
 
-    document.getElementById("nav-group").innerHTML = `
-      <div class="nav-label">Manage</div>
-      <a class="nav-item" href="dashboard.html">${eq_icon("home", 16)} Overview</a>
-      <a class="nav-item" href="admin-access.html">${eq_icon("shield", 16)} Course access &amp; licensing</a>
-      <div class="nav-item active">${eq_icon("users", 16)} Users</div>
-      <a class="nav-item" href="admin-change-requests.html">${eq_icon("clipboard", 16)} Change requests</a>
-    `;
-    eq_renderSidebarFooter(session.user);
-    eq_renderTopbarUtilities();
+    eq_renderRailNav([
+      { href: "dashboard.html", icon: "home", label: "Overview" },
+      { href: "admin-access.html", icon: "shield", label: "Course access & licensing" },
+      { href: null, icon: "users", label: "Users", active: true },
+      { href: "admin-change-requests.html", icon: "clipboard", label: "Change requests" }
+    ]);
+    eq_renderRailFooter(session.user);
     if (session.school) eq_applyBranding(session.school);
 
     schools = session.schools || [];

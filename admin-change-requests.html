@@ -10,30 +10,23 @@
 <body>
 
 <div class="app-shell">
+  <nav class="rail">
+    <div class="rail-logo"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+    <div class="rail-nav" id="rail-nav"></div>
+    <div class="rail-footer" id="rail-footer"></div>
+  </nav>
 
-  <aside class="sidebar">
-    <div class="brand-row">
-      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
-      <div class="brand-name" data-brand-name>EtaQuest</div>
-    </div>
-    <nav class="nav-group" id="nav-group"></nav>
-    <div class="sidebar-footer" id="sidebar-footer"></div>
-  </aside>
-
-  <div class="main">
-    <div class="topbar">
+  <main class="workspace">
+    <header class="workspace-header">
       <div>
         <h1>Change requests</h1>
-        <div class="school-tag">Feedback submitted by educators and HODs about course material</div>
+        <div class="workspace-sub">Feedback submitted by educators and HODs about course material</div>
       </div>
-      <div class="topbar-right"><div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div></div>
-    </div>
-
-    <div class="content" id="content">
+    </header>
+    <div class="workspace-content" id="content">
       <div class="empty-state"><h3>Loading…</h3></div>
     </div>
-  </div>
-
+  </main>
 </div>
 
 <script src="app.js"></script>
@@ -104,15 +97,13 @@
       return;
     }
 
-    document.getElementById("nav-group").innerHTML = `
-      <div class="nav-label">Manage</div>
-      <a class="nav-item" href="dashboard.html">${eq_icon("home", 16)} Overview</a>
-      <a class="nav-item" href="admin-access.html">${eq_icon("shield", 16)} Course access &amp; licensing</a>
-      <a class="nav-item" href="admin-users.html">${eq_icon("users", 16)} Users</a>
-      <div class="nav-item active">${eq_icon("clipboard", 16)} Change requests</div>
-    `;
-    eq_renderSidebarFooter(session.user);
-    eq_renderTopbarUtilities();
+    eq_renderRailNav([
+      { href: "dashboard.html", icon: "home", label: "Overview" },
+      { href: "admin-access.html", icon: "shield", label: "Course access & licensing" },
+      { href: "admin-users.html", icon: "users", label: "Users" },
+      { href: null, icon: "clipboard", label: "Change requests", active: true }
+    ]);
+    eq_renderRailFooter(session.user);
     if (session.school) eq_applyBranding(session.school);
 
     await renderRequests();

@@ -297,40 +297,63 @@ async function eq_requireSession(previewSchoolId) {
   }
 }
 
-/* ---------- Shared chrome ---------- */
+/* ---------- Shared chrome (icon rail + avatar flyout) ---------- */
 
 function eq_roleLabel(role) {
   return { admin: "Super Admin", hod: "Head of Department", educator: "Educator" }[role] || role;
 }
 
-// Fills in the #sidebar-footer element every page shares: avatar,
-// name, role, a Profile link, and Log out. Keeps this identical
-// everywhere instead of hand-duplicating it per page.
-function eq_renderSidebarFooter(user) {
-  const el = document.getElementById("sidebar-footer");
+// Fills in the #rail-nav element with icon-only nav buttons for the
+// given role. Each item: { href, icon, label, active }. href null
+// means it's the current page (rendered as a non-navigating active item).
+function eq_renderRailNav(items) {
+  const el = document.getElementById("rail-nav");
   if (!el) return;
-  el.innerHTML = `
-    <a href="profile.html" class="sidebar-user-row">
-      ${eq_avatar(user.name, 34)}
-      <div>
-        <div class="user-name">${eq_escapeHtml(user.name)}</div>
-        <div class="role-line">${eq_roleLabel(user.role)}</div>
-      </div>
-    </a>
-    <div class="sidebar-actions">
-      <a href="profile.html" class="btn btn-ghost btn-sm btn-block" style="text-decoration:none;">${eq_icon("user", 15)} Profile</a>
-      <button class="btn btn-ghost btn-sm btn-block" onclick="eq_logout()">${eq_icon("logout", 15)} Log out</button>
-    </div>
-  `;
+  el.innerHTML = items.map(item => {
+    const tag = item.href ? "a" : "div";
+    const hrefAttr = item.href ? `href="${item.href}"` : "";
+    return `<${tag} ${hrefAttr} class="rail-item${item.active ? " active" : ""}" title="${eq_escapeHtml(item.label)}" aria-label="${eq_escapeHtml(item.label)}">${eq_icon(item.icon, 20)}</${tag}>`;
+  }).join("");
 }
 
-// Fills in the #topbar-right utility cluster (search + notification
-// bell). Both are visual placeholders — no backing functionality yet.
-function eq_renderTopbarUtilities(targetId) {
-  const el = document.getElementById(targetId || "topbar-utilities");
+// Fills in the #rail-footer element: an avatar button that opens a
+// flyout with Profile / Log out. Identical everywhere.
+function eq_renderRailFooter(user) {
+  const el = document.getElementById("rail-footer");
   if (!el) return;
   el.innerHTML = `
-    <div class="topbar-search">${eq_icon("search", 15)} <span>Search…</span></div>
-    <button class="icon-btn" title="Notifications" disabled>${eq_icon("bell", 17)}<span class="dot"></span></button>
+    <div class="rail-avatar-wrap">
+      <button class="rail-avatar-trigger" id="rail-avatar-trigger" title="${eq_escapeHtml(user.name)} — ${eq_roleLabel(user.role)}">
+        ${eq_avatar(user.name, 36)}
+      </button>
+      <div class="avatar-flyout" id="avatar-flyout">
+        <div class="avatar-flyout-header">
+          <div class="user-name">${eq_escapeHtml(user.name)}</div>
+          <div class="role-line">${eq_roleLabel(user.role)}</div>
+        </div>
+        <a href="profile.html" class="avatar-flyout-item">${eq_icon("user", 15)} Profile</a>
+        <button class="avatar-flyout-item" onclick="eq_logout()">${eq_icon("logout", 15)} Log out</button>
+      </div>
+    </div>
   `;
+  const trigger = document.getElementById("rail-avatar-trigger");
+  const flyout = document.getElementById("avatar-flyout");
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    flyout.classList.toggle("open");
+  });
+  document.addEventListener("click", (e) => {
+    if (!flyout.contains(e.target) && e.target !== trigger) flyout.classList.remove("open");
+  });
+}
+
+// Renders the plain (non-colored) workspace header — eyebrow line,
+// page title, optional right-side actions slot.
+function eq_renderWorkspaceHeader({ eyebrow, title, sub }) {
+  const eyebrowEl = document.getElementById("workspace-eyebrow");
+  const titleEl = document.getElementById("workspace-title");
+  const subEl = document.getElementById("workspace-sub");
+  if (eyebrowEl) eyebrowEl.textContent = eyebrow || "";
+  if (titleEl) titleEl.textContent = title || "";
+  if (subEl) subEl.textContent = sub || "";
 }

@@ -10,66 +10,42 @@
 <body>
 
 <div class="app-shell">
+  <nav class="rail">
+    <div class="rail-logo"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
+    <div class="rail-nav" id="rail-nav"></div>
+    <div class="rail-footer" id="rail-footer"></div>
+  </nav>
 
-  <aside class="sidebar">
-    <div class="brand-row">
-      <div class="brand-mark"><img src="assets/etaquest-logo-icon.jpg" alt="EtaQuest"></div>
-      <div class="brand-name" data-brand-name>EtaQuest</div>
-    </div>
-
-    <nav class="nav-group" id="nav-group"></nav>
-
-    <div class="sidebar-footer" id="sidebar-footer"></div>
-  </aside>
-
-  <div class="main">
-    <div class="topbar">
+  <main class="workspace">
+    <header class="workspace-header">
       <div>
-        <div class="welcome-line" id="welcome-line"></div>
-        <h1 id="page-title">Overview</h1>
-        <div class="school-tag" id="school-tag">—</div>
+        <div class="workspace-eyebrow" id="workspace-eyebrow"></div>
+        <h1 id="workspace-title">Overview</h1>
+        <div class="workspace-sub" id="workspace-sub"></div>
       </div>
-      <div class="topbar-right">
-        <div id="topbar-actions"></div>
-        <div id="topbar-utilities" style="display:flex; gap:8px; align-items:center;"></div>
-      </div>
-    </div>
-
-    <div class="content" id="content">
+      <div class="workspace-actions" id="workspace-actions"></div>
+    </header>
+    <div class="workspace-content" id="content">
       <div class="empty-state"><h3>Loading…</h3></div>
     </div>
-  </div>
-
+  </main>
 </div>
 
 <script src="app.js"></script>
 <script>
   let session = null;
   let previewSchoolId = null;
+  let selectedSchoolIdForDetail = null;
 
-  const navGroup = document.getElementById("nav-group");
   const content = document.getElementById("content");
-  const pageTitle = document.getElementById("page-title");
-  const topbarActions = document.getElementById("topbar-actions");
+  const workspaceActions = document.getElementById("workspace-actions");
 
-  function statCardHTML(icon, label, value, sub) {
-    return `
-      <div class="stat-card">
-        <div class="stat-label">${eq_icon(icon, 15)} ${label}</div>
-        <div class="stat-value">${value}</div>
-        ${sub ? `<div class="stat-sub">${sub}</div>` : ""}
-      </div>
-    `;
-  }
-
-  function progressBarHTML(completed, total) {
-    const pct = total ? Math.round((completed / total) * 100) : 0;
-    return `
-      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-      <span class="progress-label">${completed}/${total} modules (${pct}%)</span>
-    `;
-  }
-
+  const CATEGORY_COLORS = {
+    "Electronics & Programming": "#2563AC",
+    "Artificial Intelligence": "#F8804C",
+    "Robotics": "#1E8E5A",
+    "Robotics & Construction": "#6D4AAE"
+  };
   const CATEGORY_ICONS = {
     "Electronics & Programming": "🔌",
     "Artificial Intelligence": "🤖",
@@ -77,40 +53,37 @@
     "Robotics & Construction": "🧩"
   };
 
-  function licenseBadgeHTML(course) {
+  function licenseChipHTML(course) {
     if (!course.license) return "";
     const cls = { active: "license-active", expired: "license-expired", upcoming: "license-upcoming", unset: "license-unset" }[course.license.status];
-    return `<span class="license-pill ${cls}" style="margin-bottom:8px;">${eq_escapeHtml(course.license.label)}</span>`;
+    return `<span class="cc-license-chip license-pill ${cls}">${eq_escapeHtml(course.license.label)}</span>`;
   }
 
   function courseCardHTML(course) {
     const hasProgress = course.modules_completed !== undefined;
+    const pct = hasProgress && course.total_modules ? Math.round((course.modules_completed / course.total_modules) * 100) : null;
+    const color = CATEGORY_COLORS[course.category] || "#053757";
     return `
-      <a class="course-card" href="course.html?id=${course.id}">
+      <a class="eq-course-card" style="--cat-color:${color};" href="course.html?id=${course.id}">
         ${
           course.image_url
-            ? `<img class="course-card-image" src="${course.image_url}" alt="${eq_escapeHtml(course.title)}">`
-            : `<div class="course-card-image course-card-image-fallback">${CATEGORY_ICONS[course.category] || "📘"}</div>`
+            ? `<img class="eq-course-card-image" src="${course.image_url}" alt="${eq_escapeHtml(course.title)}">`
+            : `<div class="eq-course-card-image eq-course-card-image-fallback">${CATEGORY_ICONS[course.category] || "📘"}</div>`
         }
-        <div class="course-card-hover"><p>${eq_escapeHtml(course.summary || "")}</p></div>
-        <div class="card-body">
-          ${licenseBadgeHTML(course)}
-          <span class="category">${eq_escapeHtml(course.category || "")}</span>
+        ${licenseChipHTML(course)}
+        <div class="cc-body">
+          <span class="cc-category">${eq_escapeHtml(course.category || "")}</span>
           <h3>${eq_escapeHtml(course.title)}</h3>
-          ${hasProgress ? `<div class="progress-wrap">${progressBarHTML(course.modules_completed, course.total_modules)}</div>` : ""}
+          ${pct !== null ? `<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><span class="progress-label">${course.modules_completed}/${course.total_modules} modules</span></div>` : ""}
         </div>
-        <div class="card-footer"><span class="btn btn-ghost btn-sm btn-block">Open course</span></div>
       </a>
     `;
   }
 
   /* ---------------- Educator view ---------------- */
   async function renderEducatorView() {
-    pageTitle.textContent = "My courses";
-    navGroup.innerHTML = `
-      <div class="nav-label">Classroom</div>
-      <div class="nav-item active">${eq_icon("book", 16)} My courses</div>
-    `;
+    eq_renderRailNav([{ href: null, icon: "book", label: "My courses", active: true }]);
+    eq_renderWorkspaceHeader({ eyebrow: `Welcome, ${session.user.name}`, title: "My courses" });
 
     const courses = await eq_getCourses();
 
@@ -119,32 +92,40 @@
       return;
     }
 
+    const inProgress = courses.find(c => c.modules_completed > 0 && c.modules_completed < c.total_modules) || courses[0];
     const totalModules = courses.reduce((s, c) => s + (c.total_modules || 0), 0);
     const completedModules = courses.reduce((s, c) => s + (c.modules_completed || 0), 0);
     const rate = totalModules ? Math.round((completedModules / totalModules) * 100) : 0;
+    const heroBg = inProgress.image_url ? `background-image:url('${inProgress.image_url}');` : "";
 
     content.innerHTML = `
-      <div class="stat-grid">
-        ${statCardHTML("book", "Assigned curricula", courses.length)}
-        ${statCardHTML("checkCircle", "Lessons completed", `${completedModules}/${totalModules}`)}
-        ${statCardHTML("chart", "Overall completion", `${rate}%`)}
+      <div class="hero-card" style="${heroBg}">
+        <div class="hero-card-content">
+          <div class="hero-eyebrow">${inProgress.modules_completed > 0 ? "Continue learning" : "Get started"}</div>
+          <div class="hero-title">${eq_escapeHtml(inProgress.title)}</div>
+          <div class="hero-sub">${eq_escapeHtml(inProgress.summary || "")}</div>
+          <a href="course.html?id=${inProgress.id}" class="btn btn-white btn-lg">${eq_icon("book", 16)} ${inProgress.modules_completed > 0 ? "Resume" : "Start"} curriculum</a>
+        </div>
       </div>
-      <div class="section-heading">
-        <h2>Assigned to you</h2>
-        <span class="count">${courses.length} curriculum${courses.length > 1 ? "s" : ""}</span>
+
+      <div class="stats-strip">
+        <div class="stats-strip-item"><div class="ss-value">${courses.length}</div><div class="ss-label">Assigned curricula</div></div>
+        <div class="stats-strip-item"><div class="ss-value">${completedModules}/${totalModules}</div><div class="ss-label">Lessons completed</div></div>
+        <div class="stats-strip-item"><div class="ss-value">${rate}%</div><div class="ss-label">Overall completion</div></div>
       </div>
-      <div class="course-grid">${courses.map(courseCardHTML).join("")}</div>
+
+      <div class="section-heading"><h2>All your curricula</h2><span class="count">${courses.length} total</span></div>
+      <div class="course-rail">${courses.map(courseCardHTML).join("")}</div>
     `;
   }
 
   /* ---------------- HOD view ---------------- */
   async function renderHodView() {
-    pageTitle.textContent = "Department overview";
-    navGroup.innerHTML = `
-      <div class="nav-label">Department</div>
-      <div class="nav-item active">${eq_icon("home", 16)} Overview</div>
-      <a class="nav-item" href="reports.html">${eq_icon("chart", 16)} Educator reports</a>
-    `;
+    eq_renderRailNav([
+      { href: null, icon: "home", label: "Overview", active: true },
+      { href: "reports.html", icon: "chart", label: "Educator reports" }
+    ]);
+    eq_renderWorkspaceHeader({ eyebrow: `Welcome, ${session.user.name}`, title: "Department overview", sub: session.school ? session.school.name : "" });
 
     const [courses, educators] = await Promise.all([eq_getCourses(), eq_getReports()]);
     const totalLogins = educators.reduce((s, e) => s + e.loginCount, 0);
@@ -153,106 +134,103 @@
     const avgRate = totalPossible ? Math.round((totalDone / totalPossible) * 100) : 0;
 
     content.innerHTML = `
-      <div class="stat-grid">
-        ${statCardHTML("users", "Educators", educators.length)}
-        ${statCardHTML("chart", "Avg. completion", `${avgRate}%`)}
-        ${statCardHTML("clock", "Total sign-ins", totalLogins)}
-      </div>
-
-      <div class="panel" style="padding:20px 24px; display:flex; align-items:center; justify-content:space-between;">
-        <div>
-          <h2 style="font-size:15px; margin-bottom:4px;">Educator reports</h2>
-          <p style="font-size:13px; color:var(--color-ink-soft); margin:0;">See curriculum completion and login activity for every educator in your school.</p>
+      <div class="hero-card" style="background-color: var(--brand-primary);">
+        <div class="hero-card-content">
+          <div class="hero-eyebrow">Department</div>
+          <div class="hero-title">See how your educators are progressing</div>
+          <div class="hero-sub">Curriculum completion and login activity for every educator in your school, in one view.</div>
+          <a href="reports.html" class="btn btn-white btn-lg">${eq_icon("chart", 16)} View reports</a>
         </div>
-        <a href="reports.html" class="btn btn-primary">View reports</a>
       </div>
 
-      <div class="section-heading">
-        <h2>Licensed curricula — ${eq_escapeHtml(session.school ? session.school.name : "")}</h2>
-        <span class="count">${courses.length} total</span>
+      <div class="stats-strip">
+        <div class="stats-strip-item"><div class="ss-value">${educators.length}</div><div class="ss-label">Educators</div></div>
+        <div class="stats-strip-item"><div class="ss-value">${avgRate}%</div><div class="ss-label">Avg. completion</div></div>
+        <div class="stats-strip-item"><div class="ss-value">${totalLogins}</div><div class="ss-label">Total sign-ins</div></div>
       </div>
-      <div class="course-grid">${courses.map(courseCardHTML).join("")}</div>
+
+      <div class="section-heading"><h2>Licensed curricula</h2><span class="count">${courses.length} total</span></div>
+      <div class="course-rail">${courses.map(courseCardHTML).join("")}</div>
     `;
   }
 
-  /* ---------------- Admin view ---------------- */
+  /* ---------------- Admin view: master-detail, not dropdown+tabs ---------------- */
   async function renderAdminView() {
-    pageTitle.textContent = "Admin overview";
-    navGroup.innerHTML = `
-      <div class="nav-label">Manage</div>
-      <div class="nav-item active">${eq_icon("home", 16)} Overview</div>
-      <a class="nav-item" href="admin-access.html">${eq_icon("shield", 16)} Course access &amp; licensing</a>
-      <a class="nav-item" href="admin-users.html">${eq_icon("users", 16)} Users</a>
-      <a class="nav-item" href="admin-change-requests.html">${eq_icon("clipboard", 16)} Change requests</a>
-    `;
+    eq_renderRailNav([
+      { href: null, icon: "home", label: "Overview", active: true },
+      { href: "admin-access.html", icon: "shield", label: "Course access & licensing" },
+      { href: "admin-users.html", icon: "users", label: "Users" },
+      { href: "admin-change-requests.html", icon: "clipboard", label: "Change requests" }
+    ]);
+    eq_renderWorkspaceHeader({ eyebrow: `Welcome, ${session.user.name}`, title: "Admin overview", sub: "All schools" });
 
     const schools = session.schools || [];
-    if (!previewSchoolId && schools.length) previewSchoolId = schools[0].id;
+    selectedSchoolIdForDetail = selectedSchoolIdForDetail || schools[0]?.id;
 
-    topbarActions.innerHTML = `
-      <select id="admin-school-select">
-        ${schools.map(s => `<option value="${s.id}" ${s.id === previewSchoolId ? "selected" : ""}>${eq_escapeHtml(s.name)}</option>`).join("")}
-      </select>
-    `;
-    document.getElementById("admin-school-select").addEventListener("change", async (e) => {
-      previewSchoolId = e.target.value;
-      const meData = await eq_me(previewSchoolId);
-      eq_applyBranding(meData.school);
-      document.getElementById("school-tag").textContent = meData.school.name;
-      await renderAdminView();
-    });
-
-    const [courses, educators, allSchools, changeRequests] = await Promise.all([
-      eq_getCourses(previewSchoolId),
-      eq_getReports(previewSchoolId),
-      eq_getSchools(),
-      eq_getChangeRequests().catch(() => [])
-    ]);
+    const [allSchools, changeRequests] = await Promise.all([eq_getSchools(), eq_getChangeRequests().catch(() => [])]);
     const pendingCount = changeRequests.filter(r => r.status === "pending").length;
 
     content.innerHTML = `
-      <div class="stat-grid">
-        ${statCardHTML("building", "Schools", allSchools.length)}
-        ${statCardHTML("book", "Licensed curricula", courses.length, "at this school")}
-        ${statCardHTML("users", "Educators", educators.length, "at this school")}
-        ${statCardHTML("clipboard", "Pending requests", pendingCount)}
+      <div class="stats-strip">
+        <div class="stats-strip-item"><div class="ss-value">${allSchools.length}</div><div class="ss-label">Schools</div></div>
+        <div class="stats-strip-item"><div class="ss-value">${pendingCount}</div><div class="ss-label">Pending change requests</div></div>
+        <div class="stats-strip-item"><div class="ss-value">4</div><div class="ss-label">Total curricula</div></div>
       </div>
 
-      <div class="section-heading">
-        <h2>Licensed curricula</h2>
-        <span class="count">${courses.length} of 4 total curricula</span>
+      <div class="section-heading"><h2>Schools</h2></div>
+      <div class="md-layout">
+        <div class="md-list" id="md-school-list">
+          ${schools.map(s => `
+            <div class="md-list-item${s.id === selectedSchoolIdForDetail ? " active" : ""}" data-school-id="${s.id}">
+              <span>${eq_escapeHtml(s.name)}</span>
+              <span class="md-count">${allSchools.find(a => a.id === s.id)?.course_count ?? "—"}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="md-detail" id="md-detail">
+          <div class="empty-state"><h3>Loading…</h3></div>
+        </div>
       </div>
+    `;
+
+    document.querySelectorAll(".md-list-item").forEach(item => {
+      item.addEventListener("click", async () => {
+        selectedSchoolIdForDetail = item.dataset.schoolId;
+        document.querySelectorAll(".md-list-item").forEach(i => i.classList.toggle("active", i === item));
+        await renderSchoolDetail(selectedSchoolIdForDetail);
+      });
+    });
+
+    if (selectedSchoolIdForDetail) await renderSchoolDetail(selectedSchoolIdForDetail);
+  }
+
+  async function renderSchoolDetail(schoolId) {
+    const detail = document.getElementById("md-detail");
+    detail.innerHTML = `<div class="empty-state"><h3>Loading…</h3></div>`;
+
+    const [courses, educators] = await Promise.all([eq_getCourses(schoolId), eq_getReports(schoolId)]);
+
+    detail.innerHTML = `
+      <div class="section-heading"><h2>Licensed curricula</h2><span class="count">${courses.length} of 4</span></div>
       <div class="course-grid" style="margin-bottom:28px;">${courses.map(courseCardHTML).join("")}</div>
 
-      <div class="panel">
-        <div class="panel-header"><h2>Educators at this school</h2></div>
-        <table>
-          <thead><tr><th>Educator</th><th>Logins</th><th>Assigned curricula</th></tr></thead>
-          <tbody>
-            ${
-              educators.length
-                ? educators.map(e => `
-                  <tr>
-                    <td><div class="table-user-cell">${eq_avatar(e.name, 28)} <span class="name">${eq_escapeHtml(e.name)}</span></div></td>
-                    <td>${e.loginCount}</td>
-                    <td>${e.courses.map(c => eq_escapeHtml(c.title)).join(", ") || "—"}</td>
-                  </tr>
-                `).join("")
-                : `<tr><td colspan="3" style="color:var(--color-ink-faint)">No educators at this school yet.</td></tr>`
-            }
-          </tbody>
-        </table>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header"><h2>All schools</h2></div>
-        <table>
-          <thead><tr><th>School</th><th>Curricula licensed</th></tr></thead>
-          <tbody>
-            ${allSchools.map(s => `<tr><td>${eq_escapeHtml(s.name)}</td><td>${s.course_count}</td></tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
+      <div class="section-heading"><h2>Educators</h2><span class="count">${educators.length}</span></div>
+      ${
+        educators.length
+          ? `<div class="panel"><div class="user-row-list">
+              ${educators.map(e => `
+                <div class="user-row">
+                  ${eq_avatar(e.name, 34)}
+                  <div>
+                    <div class="user-row-name">${eq_escapeHtml(e.name)}</div>
+                    <div class="user-row-sub">${eq_escapeHtml(e.courses.map(c => c.title).join(", ") || "No curricula assigned")}</div>
+                  </div>
+                  <div class="user-row-meta"><div class="stat-chip"><div class="chip-value">${e.loginCount}</div><div class="chip-label">Logins</div></div></div>
+                </div>
+              `).join("")}
+            </div></div>`
+          : `<div class="panel"><div class="empty-state">${eq_icon("users", 26)}<h3>No educators yet</h3></div></div>`
+      }
     `;
   }
 
@@ -264,16 +242,8 @@
       return;
     }
 
-    eq_renderSidebarFooter(session.user);
-    eq_renderTopbarUtilities();
-    document.getElementById("welcome-line").textContent = `Welcome, ${session.user.name}`;
-
-    if (session.school) {
-      eq_applyBranding(session.school);
-      document.getElementById("school-tag").textContent = session.school.name;
-    } else {
-      document.getElementById("school-tag").textContent = "All schools";
-    }
+    eq_renderRailFooter(session.user);
+    if (session.school) eq_applyBranding(session.school);
 
     if (session.user.role === "admin") {
       await renderAdminView();
