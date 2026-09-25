@@ -35,8 +35,8 @@
 
 <script src="app.js"></script>
 <script>
-  let session, course, lessons, currentLesson, currentView = "lecture";
-
+  let session, course, lessons, currentLesson, currentView = "lecture", licenseLocked = false;
+  
   function showToast(message) {
     const toast = document.getElementById("toast");
     toast.textContent = message;
