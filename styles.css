@@ -237,7 +237,9 @@ button { font-family: var(--font-body); cursor: pointer; }
 .course-rail .eq-course-card { flex: 0 0 250px; scroll-snap-align: start; }
 @media (hover: hover) and (pointer: fine) {
   .eq-course-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .eq-course-card:hover .cc-hover-overlay { opacity: 1; }
 }
+
 .eq-course-card-image { width: 100%; height: 140px; object-fit: cover; display: block; background: var(--color-surface-sunken); }
 .eq-course-card-image-fallback { display: flex; align-items: center; justify-content: center; font-size: 44px; background: var(--cat-color, var(--brand-primary)); }
 .eq-course-card .cc-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
@@ -250,6 +252,16 @@ button { font-family: var(--font-body); cursor: pointer; }
 .eq-course-card-locked { filter: grayscale(0.35); opacity: 0.82; }
 .eq-course-card-locked .eq-course-card-image { filter: grayscale(0.5); }
 .eq-course-card-locked .eq-course-card-image:hover { filter: grayscale(0.5); }
+
+.cc-hover-overlay {
+  position: absolute; top: 0; left: 0; right: 0; height: 140px; /* matches .eq-course-card-image height */
+  background: linear-gradient(180deg, rgba(5,55,87,0.05) 0%, rgba(5,25,40,0.9) 100%);
+  display: flex; align-items: flex-end; padding: 14px;
+  opacity: 0; transition: opacity 0.18s ease; pointer-events: none;
+}
+.cc-hover-overlay p {
+  color: #fff; font-size: 12px; margin: 0; line-height: 1.4;
+}
 
 /* ---------- Panels: flat, hairline border, no heavy shadow ---------- */
 
