@@ -272,8 +272,6 @@ async function eq_createUser(user) {
 
 function eq_applyBranding(school) {
   if (!school) return;
-  document.documentElement.style.setProperty("--brand-primary", school.primary_color);
-  document.documentElement.style.setProperty("--brand-accent", school.accent_color);
   document.querySelectorAll("[data-brand-name]").forEach(el => (el.textContent = school.name));
   document.querySelectorAll("[data-brand-tagline]").forEach(el => (el.textContent = school.tagline || ""));
   document.querySelectorAll("[data-brand-mark]").forEach(el => (el.textContent = school.short_name));
