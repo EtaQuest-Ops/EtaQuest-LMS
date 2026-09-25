@@ -53,32 +53,38 @@
     "Robotics & Construction": "🧩"
   };
 
-  function licenseChipHTML(course) {
+    function licenseChipHTML(course) {
+    if (course.locked) return `<span class="course-card-license-chip license-pill license-expired">${eq_icon("shield", 12)} Locked</span>`;
     if (!course.license) return "";
     const cls = { active: "license-active", expired: "license-expired", upcoming: "license-upcoming", unset: "license-unset" }[course.license.status];
-    return `<span class="cc-license-chip license-pill ${cls}">${eq_escapeHtml(course.license.label)}</span>`;
+    return `<span class="course-card-license-chip license-pill ${cls}">${eq_escapeHtml(course.license.label)}</span>`;
   }
 
   function courseCardHTML(course) {
     const hasProgress = course.modules_completed !== undefined;
-    const pct = hasProgress && course.total_modules ? Math.round((course.modules_completed / course.total_modules) * 100) : null;
     const color = CATEGORY_COLORS[course.category] || "#053757";
+    const locked = !!course.locked || (course.license && course.license.status === "expired");
     return `
-      <a class="eq-course-card" style="--cat-color:${color};" href="course.html?id=${course.id}">
-        ${
-          course.image_url
-            ? `<img class="eq-course-card-image" src="${course.image_url}" alt="${eq_escapeHtml(course.title)}">`
-            : `<div class="eq-course-card-image eq-course-card-image-fallback">${CATEGORY_ICONS[course.category] || "📘"}</div>`
-        }
-        ${licenseChipHTML(course)}
-        <div class="cc-body">
-          <span class="cc-category">${eq_escapeHtml(course.category || "")}</span>
-          <h3>${eq_escapeHtml(course.title)}</h3>
-          ${pct !== null ? `<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><span class="progress-label">${course.modules_completed}/${course.total_modules} modules</span></div>` : ""}
+      <a class="course-card${locked ? " course-card-locked" : ""}" style="--cat-color:${color};" href="course.html?id=${course.id}">
+        <div class="course-card-image-wrap">
+          ${
+            course.image_url
+              ? `<img class="course-card-image" src="${course.image_url}" alt="${eq_escapeHtml(course.title)}">`
+              : `<div class="course-card-image course-card-image-fallback">${CATEGORY_ICONS[course.category] || "📘"}</div>`
+          }
+          ${licenseChipHTML(course)}
+          <div class="course-card-hover"><p>${eq_escapeHtml(course.summary || "")}</p></div>
         </div>
+        <div class="card-body">
+          <span class="category">${eq_escapeHtml(course.category || "")}</span>
+          <h3>${eq_escapeHtml(course.title)}</h3>
+          ${hasProgress ? `<div class="progress-wrap">${progressBarHTML(course.modules_completed, course.total_modules)}</div>` : ""}
+        </div>
+        <div class="card-footer"><span class="btn btn-ghost btn-sm btn-block">${locked ? "View (locked)" : "Open course"}</span></div>
       </a>
     `;
   }
+  
 
   /* ---------------- Educator view ---------------- */
   async function renderEducatorView() {
