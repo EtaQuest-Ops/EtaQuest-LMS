@@ -73,11 +73,12 @@
             : `<div class="eq-course-card-image eq-course-card-image-fallback">${CATEGORY_ICONS[course.category] || "📘"}</div>`
         }
         ${licenseChipHTML(course)}
-        <div class="cc-body">
-          <span class="cc-category">${eq_escapeHtml(course.category || "")}</span>
-          <h3>${eq_escapeHtml(course.title)}</h3>
-          ${pct !== null ? `<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><span class="progress-label">${course.modules_completed}/${course.total_modules} modules</span></div>` : ""}
-        </div>
+      ${course.summary ? `<div class="cc-hover-overlay"><p>${eq_escapeHtml(course.summary)}</p></div>` : ""}
+      <div class="cc-body">
+        <span class="cc-category">${eq_escapeHtml(course.category || "")}</span>
+        <h3>${eq_escapeHtml(course.title)}</h3>
+        ${pct !== null ? `<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><span class="progress-label">${course.modules_completed}/${course.total_modules} modules</span></div>` : ""}
+      </div>
       </a>
     `;
   }
