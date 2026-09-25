@@ -232,7 +232,7 @@ button { font-family: var(--font-body); cursor: pointer; }
 .eq-course-card {
   position: relative; background: var(--color-surface); border: 1px solid var(--color-line);
   border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column;
-  text-decoration: none; color: inherit; transition: transform 0.15s ease, box-shadow 0.15s ease; min-width: 0;
+  text-decoration: none; color: inherit; transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .course-rail .eq-course-card { flex: 0 0 250px; scroll-snap-align: start; }
 @media (hover: hover) and (pointer: fine) {
